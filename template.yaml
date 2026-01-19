@@ -20,7 +20,7 @@ Parameters:
     Default: api.committee.eurekacycling.org.au
   CertificateArn:
     Type: String
-    Description: ARN of the ACM Certificate
+    Description: ARN of the ACM Certificate for API and Frontend
 
 Resources:
   HelloWorldFunction:
@@ -53,7 +53,86 @@ Resources:
         Name: PK
         Type: String
 
+  FrontendBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  FrontendBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref FrontendBucket
+      PolicyDocument:
+        Id: MyPolicy
+        Version: 2012-10-17
+        Statement:
+          - Sid: PolicyForCloudFrontPrivateContent
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub "arn:aws:s3:::${FrontendBucket}/*"
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub "arn:aws:cloudfront::${AWS::AccountId}:distribution/${FrontendDistribution}"
+
+  FrontendDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Origins:
+          - DomainName: !GetAtt FrontendBucket.RegionalDomainName
+            Id: FrontendOrigin
+            S3OriginConfig:
+              OriginAccessControl: !GetAtt FrontendOAC.Id
+        Enabled: true
+        DefaultRootObject: index.html
+        Aliases:
+          - committee.eurekacycling.org.au
+        ViewerCertificate:
+          AcmCertificateArn: !Ref CertificateArn
+          SslSupportMethod: sni-only
+          MinimumProtocolVersion: TLSv1.2_2021
+        DefaultCacheBehavior:
+          TargetOriginId: FrontendOrigin
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods: [GET, HEAD, OPTIONS]
+          CachedMethods: [GET, HEAD, OPTIONS]
+          ForwardedValues:
+            QueryString: false
+            Cookies:
+              Forward: none
+        CustomErrorResponses:
+          - ErrorCode: 404
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+          - ErrorCode: 403
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+
+  FrontendOAC:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub ${AWS::StackName}-oac
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
 Outputs:
   HelloWorldApi:
     Description: "API Gateway endpoint URL for Hello World function"
     Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/hello/"
+  FrontendBucketName:
+    Description: "S3 Bucket for Frontend Assets"
+    Value: !Ref FrontendBucket
+  FrontendDistributionId:
+    Description: "CloudFront Distribution ID"
+    Value: !Ref FrontendDistribution
+  FrontendUrl:
+    Description: "Frontend URL"
+    Value: !Sub "https://${FrontendDistribution.DomainName}"
