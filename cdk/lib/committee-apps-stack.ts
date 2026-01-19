@@ -130,7 +130,7 @@ export class CommitteeAppsStack extends cdk.Stack {
         viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
         allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD_OPTIONS,
       },
-      domainNames: ['committee.eurekacycling.org.au'], // Hardcoded or Parameter? SAM has param but we fixed it in the template earlier. Using Hardcoded alias for now as per previous context or could check params.
+      domainNames: ['committee2.eurekacycling.org.au'], // Hardcoded or Parameter? SAM has param but we fixed it in the template earlier. Using Hardcoded alias for now as per previous context or could check params.
       // Wait, SAM template used 'Aliases: - committee.eurekacycling.org.au'.
       // I should probably use a parameter or the hardcoded value.
       certificate: frontendCertificate,
