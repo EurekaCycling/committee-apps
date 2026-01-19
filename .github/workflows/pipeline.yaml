@@ -22,11 +22,6 @@ jobs:
           go-version: 'stable'
           cache-dependency-path: backend/go.sum
 
-      - name: Setup AWS SAM CLI
-        uses: aws-actions/setup-sam@v2
-        with:
-          use-installer: true
-
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
