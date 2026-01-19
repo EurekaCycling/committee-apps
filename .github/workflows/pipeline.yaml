@@ -48,4 +48,4 @@ jobs:
             --resolve-s3 \
             --capabilities CAPABILITY_IAM \
             --region ${{ vars.AWS_REGION }} \
-            --parameter-overrides DomainName=api.committee.eurekacycling.org.au HostedZoneId=${{ secrets.HOSTED_ZONE_ID }}
+            --parameter-overrides DomainName=api.committee.eurekacycling.org.au CertificateArn=${{ secrets.ACM_CERTIFICATE_ARN }}

@@ -18,20 +18,11 @@ Parameters:
     Type: String
     Description: Custom Domain Name for API
     Default: api.committee.eurekacycling.org.au
-  HostedZoneId:
+  CertificateArn:
     Type: String
-    Description: Route53 Hosted Zone ID
+    Description: ARN of the ACM Certificate
 
 Resources:
-  ApiCertificate:
-    Type: AWS::CertificateManager::Certificate
-    Properties:
-      DomainName: !Ref DomainName
-      ValidationMethod: DNS
-      DomainValidationOptions:
-        - DomainName: !Ref DomainName
-          HostedZoneId: !Ref HostedZoneId
-
   HelloWorldFunction:
     Type: AWS::Serverless::Function
     Metadata:
@@ -53,9 +44,7 @@ Resources:
       StageName: Prod
       Domain:
         DomainName: !Ref DomainName
-        CertificateArn: !Ref ApiCertificate
-        Route53:
-          HostedZoneId: !Ref HostedZoneId
+        CertificateArn: !Ref CertificateArn
 
   CommitteeTable:
     Type: AWS::Serverless::SimpleTable
