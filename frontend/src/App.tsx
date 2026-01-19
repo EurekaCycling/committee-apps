@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Amplify } from 'aws-amplify';
 import { Authenticator, useAuthenticator } from '@aws-amplify/ui-react';
-import { fetchAuthSession } from 'aws-amplify/auth';
 import '@aws-amplify/ui-react/styles.css';
 import './App.css';
+import { apiFetch } from './api';
 
 // Configure Amplify
 // Note: In a real app, these values should come from environment variables.
@@ -26,24 +26,7 @@ function MainContent() {
   useEffect(() => {
     async function fetchData() {
       try {
-        const session = await fetchAuthSession();
-        const token = session.tokens?.idToken?.toString();
-
-        // In production, use the custom domain. In dev, use local SAM API.
-        const apiUrl = import.meta.env.PROD
-          ? 'https://api.committee.eurekacycling.org.au/hello'
-          : 'http://127.0.0.1:3000/hello';
-
-        const res = await fetch(apiUrl, {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        });
-
-        if (res.status === 401) {
-          setMessage("Unauthorized: Please login.");
-          return;
-        }
+        const res = await apiFetch('/hello');
 
         const data = await res.json();
         setMessage(data.body || data.message || JSON.stringify(data));
