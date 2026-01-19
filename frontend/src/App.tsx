@@ -1,15 +1,17 @@
 import { useEffect, useState } from 'react';
 import { Amplify } from 'aws-amplify';
 import { Authenticator, useAuthenticator } from '@aws-amplify/ui-react';
+import { Routes, Route } from 'react-router-dom';
 import '@aws-amplify/ui-react/styles.css';
 import './App.css';
 import { apiFetch } from './api';
+import { Navigation } from './components/Navigation';
+import { Ledger } from './pages/Ledger';
+import { FinancialReports } from './pages/FinancialReports';
+import { Reimbursements } from './pages/Reimbursements';
+import { Documents } from './pages/Documents';
 
 // Configure Amplify
-// Note: In a real app, these values should come from environment variables.
-// Since we are deploying via SAM, we might need a way to inject them or fetch a config.json.
-// For now, placeholders or manual replacement will be needed until we automate config injection.
-// We will assume environment variables VITE_USER_POOL_ID and VITE_USER_POOL_CLIENT_ID are set in the build.
 Amplify.configure({
   Auth: {
     Cognito: {
@@ -19,15 +21,14 @@ Amplify.configure({
   }
 });
 
-function MainContent() {
+function Home() {
   const [message, setMessage] = useState<string>('Loading...');
-  const { user, signOut } = useAuthenticator((context) => [context.user]);
+  const { user } = useAuthenticator((context) => [context.user]);
 
   useEffect(() => {
     async function fetchData() {
       try {
         const res = await apiFetch('/hello');
-
         const data = await res.json();
         setMessage(data.body || data.message || JSON.stringify(data));
       } catch (err: any) {
@@ -41,12 +42,10 @@ function MainContent() {
   }, [user]);
 
   return (
-    <div className="container">
-      <h1>Eureka Committee Apps</h1>
+    <div className="page-container">
+      <h1>Welcome, {user?.signInDetails?.loginId}</h1>
       <div className="card">
-        <h2>Welcome, {user?.signInDetails?.loginId}</h2>
         <p><strong>Backend Message:</strong> {message}</p>
-        <button onClick={signOut}>Sign Out</button>
       </div>
     </div>
   );
@@ -55,7 +54,14 @@ function MainContent() {
 function App() {
   return (
     <Authenticator>
-      <MainContent />
+      <Navigation />
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/ledger" element={<Ledger />} />
+        <Route path="/reports" element={<FinancialReports />} />
+        <Route path="/reimbursements" element={<Reimbursements />} />
+        <Route path="/documents" element={<Documents />} />
+      </Routes>
     </Authenticator>
   );
 }
