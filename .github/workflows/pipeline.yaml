@@ -63,7 +63,8 @@ jobs:
             --region ${{ vars.AWS_REGION }} \
             --parameter-overrides \
               DomainName=api.committee.eurekacycling.org.au \
-              CertificateArn=${{ secrets.ACM_CERTIFICATE_ARN }}
+              CertificateArn=${{ secrets.ACM_CERTIFICATE_ARN }} \
+              FrontendCertificateArn=${{ secrets.FRONTEND_CERTIFICATE_ARN }}
 
       - name: Sync Frontend to S3
         run: |

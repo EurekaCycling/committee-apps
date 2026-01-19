@@ -20,7 +20,10 @@ Parameters:
     Default: api.committee.eurekacycling.org.au
   CertificateArn:
     Type: String
-    Description: ARN of the ACM Certificate for API and Frontend
+    Description: ARN of the ACM Certificate for API
+  FrontendCertificateArn:
+    Type: String
+    Description: ARN of the ACM Certificate for Frontend
 
 Resources:
   HelloWorldFunction:
@@ -94,7 +97,7 @@ Resources:
         Aliases:
           - committee.eurekacycling.org.au
         ViewerCertificate:
-          AcmCertificateArn: !Ref CertificateArn
+          AcmCertificateArn: !Ref FrontendCertificateArn
           SslSupportMethod: sni-only
           MinimumProtocolVersion: TLSv1.2_2021
         DefaultCacheBehavior:
