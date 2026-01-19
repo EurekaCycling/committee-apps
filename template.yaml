@@ -54,6 +54,7 @@ Resources:
         CertificateArn: !Ref CertificateArn
       Auth:
         DefaultAuthorizer: CognitoAuthorizer
+        AddDefaultAuthorizerToCorsPreflight: false
         Authorizers:
           CognitoAuthorizer:
             UserPoolArn: !GetAtt CommitteeUserPool.Arn
