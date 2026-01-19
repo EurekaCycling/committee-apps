@@ -87,8 +87,8 @@ Resources:
         Origins:
           - DomainName: !GetAtt FrontendBucket.RegionalDomainName
             Id: FrontendOrigin
-            S3OriginConfig:
-              OriginAccessControl: !GetAtt FrontendOAC.Id
+            OriginAccessControlId: !GetAtt FrontendOAC.Id
+            S3OriginConfig: {}
         Enabled: true
         DefaultRootObject: index.html
         Aliases:
