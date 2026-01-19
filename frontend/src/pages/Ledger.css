@@ -88,6 +88,34 @@
     justify-content: space-between;
     align-items: center;
     border-bottom: 1px solid #eee;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.month-header:hover {
+    background: #f0f2f5;
+}
+
+.month-block.is-open {
+    border-color: #3498db;
+    box-shadow: 0 0 8px rgba(52, 152, 219, 0.1);
+}
+
+.month-title {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.lock-icon {
+    font-size: 0.8rem;
+    color: #95a5a6;
+    display: flex;
+    align-items: center;
+}
+
+.month-block.is-open .lock-icon {
+    color: #3498db;
 }
 
 .month-header h3 {
@@ -133,6 +161,53 @@
 
 .transactions-table td.pos {
     color: #27ae60;
+}
+
+/* Add Transaction Row */
+.add-transaction-row {
+    background: #fdfdfd;
+}
+
+.add-transaction-row td {
+    padding: 0.5rem 0.75rem;
+    vertical-align: middle;
+}
+
+.add-transaction-row input,
+.add-transaction-row select {
+    width: 100%;
+    padding: 0.4rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 0.85rem;
+}
+
+.add-transaction-row input:focus,
+.add-transaction-row select:focus {
+    outline: none;
+    border-color: #3498db;
+}
+
+.amount-input {
+    text-align: right;
+}
+
+.add-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: #27ae60;
+    color: white;
+    border: none;
+    padding: 0.4rem 0.8rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: background 0.2s;
+}
+
+.add-btn:hover {
+    background: #219150;
 }
 
 .loading {

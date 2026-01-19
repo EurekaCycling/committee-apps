@@ -16,9 +16,10 @@ export interface MonthlyLedger {
     openingBalance: number;
     closingBalance: number;
     transactions: Transaction[];
+    isOpen?: boolean;
 }
 
-const CATEGORIES = ['Membership', 'Event Fee', 'Equipment', 'Reimbursement', 'Sponsorship', 'Misc'];
+export const CATEGORIES = ['Membership', 'Event Fee', 'Equipment', 'Reimbursement', 'Sponsorship', 'Misc'];
 
 function generateTransactions(
     month: string,
