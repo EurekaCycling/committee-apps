@@ -1,9 +1,9 @@
 import { Link, useLocation } from 'react-router-dom';
-import { useAuthenticator } from '@aws-amplify/ui-react';
+import { useAuth } from '../auth-hook';
 import './Navigation.css';
 
 export function Navigation() {
-    const { signOut } = useAuthenticator((context) => [context.user]);
+    const { signOut } = useAuth();
     const location = useLocation();
 
     const isActive = (path: string) => location.pathname === path ? 'active' : '';

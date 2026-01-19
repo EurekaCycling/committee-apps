@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Amplify } from 'aws-amplify';
-import { Authenticator, useAuthenticator } from '@aws-amplify/ui-react';
+import { Authenticator } from '@aws-amplify/ui-react';
 import { Routes, Route } from 'react-router-dom';
 import '@aws-amplify/ui-react/styles.css';
 import './App.css';
@@ -10,6 +10,8 @@ import { Ledger } from './pages/Ledger';
 import { FinancialReports } from './pages/FinancialReports';
 import { Reimbursements } from './pages/Reimbursements';
 import { Documents } from './pages/Documents';
+
+import { useAuth } from './auth-hook';
 
 // Configure Amplify
 Amplify.configure({
@@ -23,7 +25,7 @@ Amplify.configure({
 
 function Home() {
   const [message, setMessage] = useState<string>('Loading...');
-  const { user } = useAuthenticator((context) => [context.user]);
+  const { user } = useAuth();
 
   useEffect(() => {
     async function fetchData() {
@@ -51,9 +53,9 @@ function Home() {
   );
 }
 
-function App() {
+function MainLayout() {
   return (
-    <Authenticator>
+    <>
       <Navigation />
       <Routes>
         <Route path="/" element={<Home />} />
@@ -62,6 +64,20 @@ function App() {
         <Route path="/reimbursements" element={<Reimbursements />} />
         <Route path="/documents" element={<Documents />} />
       </Routes>
+    </>
+  );
+}
+
+function App() {
+  const useMockAuth = import.meta.env.VITE_NO_AUTH === 'true';
+
+  if (useMockAuth) {
+    return <MainLayout />;
+  }
+
+  return (
+    <Authenticator>
+      <MainLayout />
     </Authenticator>
   );
 }
