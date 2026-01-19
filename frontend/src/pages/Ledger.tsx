@@ -124,15 +124,32 @@ export function Ledger() {
 
     // Helper to get sorted transactions and recalculated balances
     const getProcessedData = useMemo(() => {
-        if (data.length === 0) return [];
+        if (data.length === 0 && !loading) return [];
 
-        // 1. Sort months chronologically for calculation
-        const sortedMonths = [...data].sort((a, b) => a.month.localeCompare(b.month));
+        // 1. Ensure current month is included
+        const today = new Date();
+        const currentMonthStr = today.toISOString().slice(0, 7);
 
-        // 2. Propagate balances
-        let carryOverBalance = sortedMonths[0].openingBalance;
+        let processedMonths = [...data];
+        if (!processedMonths.some(m => m.month === currentMonthStr)) {
+            processedMonths.push({
+                pk: `TEMP#${type}#${currentMonthStr}`,
+                month: currentMonthStr,
+                type,
+                openingBalance: 0,
+                closingBalance: 0,
+                transactions: [],
+                isOpen: true
+            });
+        }
 
-        const results = sortedMonths.map((month) => {
+        // 2. Sort months chronologically for calculation
+        processedMonths.sort((a, b) => a.month.localeCompare(b.month));
+
+        // 3. Propagate balances
+        let carryOverBalance = processedMonths[0]?.openingBalance || 0;
+
+        const results = processedMonths.map((month) => {
             const currentOpeningBalance = carryOverBalance;
             const sortedTxs = [...month.transactions].sort((a, b) => {
                 const dateComp = a.date.localeCompare(b.date);
@@ -156,9 +173,9 @@ export function Ledger() {
             };
         });
 
-        // 3. Return results (newest at bottom by default based on chronological sort)
+        // 4. Return results (chronological order)
         return results;
-    }, [data]);
+    }, [data, loading, type]);
 
     return (
         <div className="page-container ledger-page">
