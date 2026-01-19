@@ -52,6 +52,36 @@ Resources:
       Domain:
         DomainName: !Ref DomainName
         CertificateArn: !Ref CertificateArn
+      Auth:
+        DefaultAuthorizer: CognitoAuthorizer
+        Authorizers:
+          CognitoAuthorizer:
+            UserPoolArn: !GetAtt CommitteeUserPool.Arn
+
+  CommitteeUserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: !Sub ${AWS::StackName}-user-pool
+      AutoVerifiedAttributes:
+        - email
+      UsernameAttributes:
+        - email
+      Schema:
+        - AttributeDataType: String
+          Name: email
+          Required: true
+          Mutable: true
+
+  CommitteeUserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: !Sub ${AWS::StackName}-client
+      UserPoolId: !Ref CommitteeUserPool
+      GenerateSecret: false
+      ExplicitAuthFlows:
+        - ALLOW_USER_SRP_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+        - ALLOW_ADMIN_USER_PASSWORD_AUTH
 
   CommitteeTable:
     Type: AWS::Serverless::SimpleTable
@@ -143,3 +173,9 @@ Outputs:
   FrontendUrl:
     Description: "Frontend URL"
     Value: !Sub "https://${FrontendDistribution.DomainName}"
+  UserPoolId:
+    Description: "Cognito User Pool ID"
+    Value: !Ref CommitteeUserPool
+  UserPoolClientId:
+    Description: "Cognito User Pool Client ID"
+    Value: !Ref CommitteeUserPoolClient

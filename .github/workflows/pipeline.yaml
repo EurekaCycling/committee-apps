@@ -40,19 +40,6 @@ jobs:
       - name: Build SAM Application
         run: make build
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
-
-      - name: Build Frontend
-        working-directory: frontend
-        run: |
-          npm ci
-          npm run build
-
       - name: Deploy to AWS
         run: |
           sam deploy --no-confirm-changeset \
@@ -66,12 +53,35 @@ jobs:
               CertificateArn=${{ secrets.ACM_CERTIFICATE_ARN }} \
               FrontendCertificateArn=${{ secrets.FRONTEND_CERTIFICATE_ARN }}
 
+      - name: Get Stack Outputs
+        id: get-outputs
+        run: |
+          outputs=$(aws cloudformation describe-stacks --stack-name committee-apps-backend-prod --query 'Stacks[0].Outputs')
+          echo "UserPoolId=$(echo $outputs | jq -r '.[] | select(.OutputKey=="UserPoolId") | .OutputValue')" >> $GITHUB_OUTPUT
+          echo "UserPoolClientId=$(echo $outputs | jq -r '.[] | select(.OutputKey=="UserPoolClientId") | .OutputValue')" >> $GITHUB_OUTPUT
+          echo "FrontendBucketName=$(echo $outputs | jq -r '.[] | select(.OutputKey=="FrontendBucketName") | .OutputValue')" >> $GITHUB_OUTPUT
+          echo "FrontendDistributionId=$(echo $outputs | jq -r '.[] | select(.OutputKey=="FrontendDistributionId") | .OutputValue')" >> $GITHUB_OUTPUT
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build Frontend
+        working-directory: frontend
+        env:
+          VITE_USER_POOL_ID: ${{ steps.get-outputs.outputs.UserPoolId }}
+          VITE_USER_POOL_CLIENT_ID: ${{ steps.get-outputs.outputs.UserPoolClientId }}
+        run: |
+          npm ci
+          npm run build
+
       - name: Sync Frontend to S3
         run: |
-          BUCKET_NAME=$(aws cloudformation describe-stacks --stack-name committee-apps-backend-prod --query "Stacks[0].Outputs[?OutputKey=='FrontendBucketName'].OutputValue" --output text)
-          aws s3 sync frontend/dist s3://$BUCKET_NAME --delete
+          aws s3 sync frontend/dist s3://${{ steps.get-outputs.outputs.FrontendBucketName }} --delete
 
       - name: Invalidate CloudFront
         run: |
-          DIST_ID=$(aws cloudformation describe-stacks --stack-name committee-apps-backend-prod --query "Stacks[0].Outputs[?OutputKey=='FrontendDistributionId'].OutputValue" --output text)
-          aws cloudfront create-invalidation --distribution-id $DIST_ID --paths "/*"
+          aws cloudfront create-invalidation --distribution-id ${{ steps.get-outputs.outputs.FrontendDistributionId }} --paths "/*"
