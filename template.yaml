@@ -13,7 +13,25 @@ Globals:
     Environment:
       Variables:
         TABLE_NAME: !Ref CommitteeTable
+Parameters:
+  DomainName:
+    Type: String
+    Description: Custom Domain Name for API
+    Default: api.committee.eurekacycling.org.au
+  HostedZoneId:
+    Type: String
+    Description: Route53 Hosted Zone ID
+
 Resources:
+  ApiCertificate:
+    Type: AWS::CertificateManager::Certificate
+    Properties:
+      DomainName: !Ref DomainName
+      ValidationMethod: DNS
+      DomainValidationOptions:
+        - DomainName: !Ref DomainName
+          HostedZoneId: !Ref HostedZoneId
+
   HelloWorldFunction:
     Type: AWS::Serverless::Function
     Metadata:
@@ -27,6 +45,17 @@ Resources:
           Properties:
             Path: /hello
             Method: GET
+            RestApiId: !Ref ServerlessRestApi
+
+  ServerlessRestApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: Prod
+      Domain:
+        DomainName: !Ref DomainName
+        CertificateArn: !Ref ApiCertificate
+        Route53:
+          HostedZoneId: !Ref HostedZoneId
 
   CommitteeTable:
     Type: AWS::Serverless::SimpleTable

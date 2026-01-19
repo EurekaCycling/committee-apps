@@ -47,4 +47,5 @@ jobs:
             --stack-name committee-apps-backend-prod \
             --resolve-s3 \
             --capabilities CAPABILITY_IAM \
-            --region ${{ vars.AWS_REGION }}
+            --region ${{ vars.AWS_REGION }} \
+            --parameter-overrides DomainName=api.committee.eurekacycling.org.au HostedZoneId=${{ secrets.HOSTED_ZONE_ID }}
