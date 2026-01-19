@@ -1,0 +1,51 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Bootstrap AWS OICD for GitHub Actions
+
+Parameters:
+  GitHubOrg:
+    Type: String
+    Description: GitHub Organization or Username
+    Default: EurekaCycling
+  RepositoryName:
+    Type: String
+    Description: GitHub Repository Name
+    Default: committee-apps
+  OIDCProviderUrl:
+    Type: String
+    Description: URL of the OIDC Provider
+    Default: https://token.actions.githubusercontent.com
+  OIDCClientId:
+    Type: String
+    Description: Client ID for the OIDC Provider
+    Default: sts.amazonaws.com
+
+Resources:
+  GithubOidc:
+    Type: AWS::IAM::OIDCProvider
+    Properties:
+      Url: !Ref OIDCProviderUrl
+      ClientIdList: 
+        - !Ref OIDCClientId
+      ThumbprintList:
+        - 6938fd4d98bab03faadb97b34396831e3780aea1
+
+  GithubActionsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${GitHubOrg}-${RepositoryName}-github-actions
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Action: sts:AssumeRoleWithWebIdentity
+            Principal:
+              Federated: !Ref GithubOidc
+            Condition:
+              StringLike:
+                token.actions.githubusercontent.com:sub: !Sub repo:${GitHubOrg}/${RepositoryName}:*
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AdministratorAccess # Note: In production, scope this down.
+
+Outputs:
+  RoleArn:
+    Description: ARN of the created IAM Role
+    Value: !GetAtt GithubActionsRole.Arn
