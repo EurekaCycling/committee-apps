@@ -39,3 +39,12 @@ jobs:
 
       - name: Build SAM Application
         run: make build
+
+      - name: Deploy to AWS
+        run: |
+          sam deploy --no-confirm-changeset \
+            --no-fail-on-empty-changeset \
+            --stack-name committee-apps-backend-prod \
+            --resolve-s3 \
+            --capabilities CAPABILITY_IAM \
+            --region ${{ vars.AWS_REGION }}
