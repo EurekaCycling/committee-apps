@@ -66,8 +66,8 @@ export function Ledger() {
 
     const handleAddTransaction = (monthStr: string) => {
         const draft = newTxDrafts[monthStr];
-        if (!draft?.date || !draft?.category || !draft?.description || draft?.amount === undefined) {
-            alert('Please fill in all fields');
+        if (!draft?.date || !draft?.category || draft?.amount === undefined) {
+            alert('Please fill in all fields (description is optional)');
             return;
         }
 
@@ -75,7 +75,7 @@ export function Ledger() {
             id: crypto.randomUUID(),
             date: draft.date,
             category: draft.category,
-            description: draft.description,
+            description: draft.description || '',
             amount: Number(draft.amount),
             runningBalance: 0, // Will be recalculated
         };
@@ -109,27 +109,55 @@ export function Ledger() {
         }
     };
 
+    const getDaysOptions = (monthStr: string) => {
+        const [year, month] = monthStr.split('-').map(Number);
+        const daysInMonth = new Date(year, month, 0).getDate();
+        const options = [];
+        for (let d = 1; d <= daysInMonth; d++) {
+            const date = new Date(year, month - 1, d);
+            const dayName = date.toLocaleDateString('en-AU', { weekday: 'long' });
+            const value = `${monthStr}-${String(d).padStart(2, '0')}`;
+            options.push({ value, label: `${d} - ${dayName}` });
+        }
+        return options;
+    };
+
     // Helper to get sorted transactions and recalculated balances
     const getProcessedData = useMemo(() => {
-        return data.map((month) => {
-            const sorted = [...month.transactions].sort((a, b) => {
+        if (data.length === 0) return [];
+
+        // 1. Sort months chronologically for calculation
+        const sortedMonths = [...data].sort((a, b) => a.month.localeCompare(b.month));
+
+        // 2. Propagate balances
+        let carryOverBalance = sortedMonths[0].openingBalance;
+
+        const results = sortedMonths.map((month) => {
+            const currentOpeningBalance = carryOverBalance;
+            const sortedTxs = [...month.transactions].sort((a, b) => {
                 const dateComp = a.date.localeCompare(b.date);
-                return dateComp !== 0 ? dateComp : 0; // Stability is handled by array order in JS if sort returns 0
+                return dateComp !== 0 ? dateComp : 0; // Stability handles sequence
             });
 
-            // Recalculate running balances within this month view
-            let bal = month.openingBalance;
-            const txsWithBal = sorted.map(tx => {
-                bal = Number((bal + tx.amount).toFixed(2));
-                return { ...tx, runningBalance: bal };
+            let running = currentOpeningBalance;
+            const txsWithBal = sortedTxs.map(tx => {
+                running = Number((running + tx.amount).toFixed(2));
+                return { ...tx, runningBalance: running };
             });
+
+            const currentClosingBalance = running;
+            carryOverBalance = currentClosingBalance;
 
             return {
                 ...month,
-                transactions: txsWithBal,
-                closingBalance: bal
+                openingBalance: currentOpeningBalance,
+                closingBalance: currentClosingBalance,
+                transactions: txsWithBal
             };
         });
+
+        // 3. Return results (newest at bottom by default based on chronological sort)
+        return results;
     }, [data]);
 
     return (
@@ -197,13 +225,15 @@ export function Ledger() {
                                             {isOpen && (
                                                 <tr className="add-transaction-row">
                                                     <td>
-                                                        <input
-                                                            type="date"
-                                                            min={`${month.month}-01`}
-                                                            max={`${month.month}-31`}
+                                                        <select
                                                             value={draft.date || ''}
                                                             onChange={e => handleDraftUpdate(month.month, 'date', e.target.value)}
-                                                        />
+                                                        >
+                                                            <option value="">Day...</option>
+                                                            {getDaysOptions(month.month).map(opt => (
+                                                                <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                                            ))}
+                                                        </select>
                                                     </td>
                                                     <td>
                                                         <select
