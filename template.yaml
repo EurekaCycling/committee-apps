@@ -56,9 +56,16 @@ Resources:
       Auth:
         DefaultAuthorizer: CognitoAuthorizer
         AddDefaultAuthorizerToCorsPreflight: false
-        Authorizers:
-          CognitoAuthorizer:
-            UserPoolArn: !GetAtt CommitteeUserPool.Arn
+
+  CognitoAuthorizer:
+    Type: AWS::ApiGateway::Authorizer
+    Properties:
+      Name: CognitoAuthorizer
+      Type: COGNITO_USER_POOLS
+      ProviderARNs:
+        - !GetAtt CommitteeUserPool.Arn
+      IdentitySource: method.request.header.Authorization
+      RestApiId: !Ref ServerlessRestApi
 
   CommitteeUserPool:
     Type: AWS::Cognito::UserPool
