@@ -46,8 +46,9 @@ Resources:
     Properties:
       StageName: Prod
       Cors:
-        AllowMethods: "'GET,POST,OPTIONS'"
-        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+        AllowCredentials: true
+        AllowMethods: "'*'"
+        AllowHeaders: "'*'"
         AllowOrigin: "'https://committee.eurekacycling.org.au'"
       Domain:
         DomainName: !Ref DomainName
