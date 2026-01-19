@@ -1,4 +1,6 @@
 import { fetchAuthSession } from 'aws-amplify/auth';
+import { generateMockLedger } from './mocks/ledgerData';
+import type { MonthlyLedger, TransactionType } from './mocks/ledgerData';
 
 const BASE_URL = import.meta.env.PROD
     ? 'https://api.committee.eurekacycling.org.au'
@@ -26,4 +28,19 @@ export async function apiFetch(path: string, options: RequestInit = {}) {
     }
 
     return response;
+}
+
+export async function fetchLedger(type: TransactionType): Promise<MonthlyLedger[]> {
+    if (import.meta.env.VITE_NO_AUTH === 'true') {
+        console.log(`Mocking Ledger Fetch for ${type}`);
+        // Simulate network delay
+        await new Promise(resolve => setTimeout(resolve, 500));
+        return generateMockLedger(type);
+    }
+
+    const res = await apiFetch(`/ledger?type=${type}`);
+    if (!res.ok) {
+        throw new Error(`Failed to fetch ledger: ${res.statusText}`);
+    }
+    return res.json();
 }
