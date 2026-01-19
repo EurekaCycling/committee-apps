@@ -92,7 +92,7 @@ export class CommitteeAppsStack extends cdk.Stack {
         stageName: 'Prod',
       },
       defaultCorsPreflightOptions: {
-        allowOrigins: ['https://committee.eurekacycling.org.au'],
+        allowOrigins: ['https://committee.eurekacycling.org.au', 'https://committee2.eurekacycling.org.au'],
         allowMethods: apigateway.Cors.ALL_METHODS,
         allowHeaders: ['Content-Type', 'X-Amz-Date', 'Authorization', 'X-Api-Key', 'X-Amz-Security-Token'],
       },
