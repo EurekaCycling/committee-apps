@@ -1,14 +1,19 @@
+import { useState, useEffect } from 'react';
 import { useAuthenticator } from '@aws-amplify/ui-react';
+import { fetchUserAttributes } from 'aws-amplify/auth';
 
 export type Role = 'none' | 'member' | 'committee' | 'treasurer';
 
 export const useAuth = () => {
+    const [role, setRole] = useState<Role>('none');
+    const [isLoading, setIsLoading] = useState(true);
+
     if (import.meta.env.VITE_NO_AUTH === 'true') {
-        // Allow overriding role via localStorage for testing: localStorage.setItem('mock_role', 'treasurer')
         const mockRole = (localStorage.getItem('mock_role') as Role) || 'none';
         return {
             user: { signInDetails: { loginId: 'local-dev' } },
             role: mockRole,
+            isLoading: false,
             signOut: () => {
                 console.log('Mock Sign Out');
                 localStorage.removeItem('mock_role');
@@ -19,14 +24,32 @@ export const useAuth = () => {
 
     const { user, signOut } = useAuthenticator((context) => [context.user]);
 
-    // In Amplify v6, custom attributes are often under user.getAttributes() or user.userId
-    // but with useAuthenticator, it's usually available in the user object if configured.
-    // For custom attributes, they are prefixed with custom:
-    const role = (user?.userId ? (user as any).attributes?.['custom:role'] : 'none') as Role || 'none';
+    useEffect(() => {
+        async function getAttributes() {
+            if (user) {
+                setIsLoading(true);
+                try {
+                    const attributes = await fetchUserAttributes();
+                    const userRole = (attributes['custom:role'] as Role) || 'none';
+                    setRole(userRole);
+                } catch (err) {
+                    console.error('Error fetching user attributes:', err);
+                    setRole('none');
+                } finally {
+                    setIsLoading(false);
+                }
+            } else {
+                setRole('none');
+                setIsLoading(false);
+            }
+        }
+        getAttributes();
+    }, [user]);
 
     return {
         user,
         role,
+        isLoading,
         signOut
     };
 };

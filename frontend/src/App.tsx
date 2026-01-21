@@ -26,7 +26,7 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 
 function Home() {
   const [message, setMessage] = useState<string>('Loading...');
-  const { user, role } = useAuth();
+  const { user, role, isLoading } = useAuth();
 
   useEffect(() => {
     async function fetchData() {
@@ -46,9 +46,17 @@ function Home() {
 
   const hasAccess = role === 'committee' || role === 'treasurer';
 
+  if (isLoading) {
+    return (
+      <div className="page-container">
+        <div className="loading">Checking permissions...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="page-container">
-      <h1>Welcome, {user?.signInDetails?.loginId}</h1>
+      <h1>Welcome, {user?.signInDetails?.loginId || 'User'}</h1>
 
       {!hasAccess ? (
         <div className="card info-card">

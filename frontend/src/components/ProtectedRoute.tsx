@@ -9,8 +9,16 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
-    const { role, user } = useAuth();
+    const { role, user, isLoading } = useAuth();
     const location = useLocation();
+
+    if (isLoading) {
+        return (
+            <div className="page-container">
+                <div className="loading">Loading permissions...</div>
+            </div>
+        );
+    }
 
     if (!user) {
         // Not logged in, although Authenticator usually handles this, 
