@@ -1,0 +1,140 @@
+.docs-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+}
+
+.docs-breadcrumb {
+    font-size: 1.2rem;
+    font-weight: 500;
+}
+
+.btn-link {
+    background: none;
+    border: none;
+    color: var(--accent-color);
+    padding: 0;
+    font: inherit;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.btn-link:hover {
+    text-decoration: underline;
+}
+
+.docs-content {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+.file-list table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.file-list th,
+.file-list td {
+    padding: 0.75rem 1rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.clickable {
+    cursor: pointer;
+    color: var(--accent-color);
+}
+
+.clickable:hover {
+    text-decoration: underline;
+}
+
+.icon-folder {
+    margin-right: 0.5rem;
+    color: #f1c40f;
+}
+
+.icon-file {
+    margin-right: 0.5rem;
+    color: #95a5a6;
+}
+
+.empty-msg {
+    text-align: center;
+    padding: 2rem;
+    color: var(--text-secondary);
+}
+
+.markdown-view {
+    padding: 2rem;
+    position: relative;
+}
+
+.index-header {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+}
+
+.btn-icon {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 1.1rem;
+    padding: 4px;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.btn-icon:hover {
+    color: var(--accent-color);
+    background-color: var(--bg-tertiary);
+}
+
+.editor-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    height: 70vh;
+    margin-top: 1rem;
+}
+
+.markdown-editor {
+    width: 100%;
+    height: 100%;
+    padding: 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 1rem;
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    resize: none;
+}
+
+.markdown-preview {
+    padding: 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background-color: var(--bg-primary);
+    overflow-y: auto;
+}
+
+.btn-primary {
+    background-color: var(--accent-color);
+    color: white;
+}
+
+.btn-secondary {
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+}
+
+.docs-actions {
+    display: flex;
+    gap: 0.5rem;
+}

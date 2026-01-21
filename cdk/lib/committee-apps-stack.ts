@@ -60,6 +60,15 @@ export class CommitteeAppsStack extends cdk.Stack {
       },
     });
 
+    // --- Documents Storage ---
+    const documentsBucket = new s3.Bucket(this, 'DocumentsBucket', {
+      versioned: true,
+      removalPolicy: cdk.RemovalPolicy.RETAIN, // Keep documents even if stack is destroyed
+      encryption: s3.BucketEncryption.S3_MANAGED,
+      enforceSSL: true,
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+    });
+
     // --- Backend (Lambda) ---
     // Bundling Go code from ../backend
     const helloFunction = new lambda.Function(this, 'HelloWorldFunction', {
@@ -77,13 +86,13 @@ export class CommitteeAppsStack extends cdk.Stack {
       }),
       environment: {
         TABLE_NAME: table.tableName,
+        DOCUMENTS_BUCKET_NAME: documentsBucket.bucketName,
       },
     });
 
-    // Grant DynamoDB permissions
-    // Note: The original generic table doesn't have specific permissions in SAM template beyond env var, 
-    // but usually Lambda needs access. Explicitly granting it here.
+    // Grant permissions
     table.grantReadWriteData(helloFunction);
+    documentsBucket.grantReadWrite(helloFunction);
 
     // --- API Gateway ---
     const certificate = acm.Certificate.fromCertificateArn(this, 'ApiCertificate', certificateArnParam.valueAsString);
@@ -111,6 +120,26 @@ export class CommitteeAppsStack extends cdk.Stack {
 
     const helloResource = api.root.addResource('hello');
     helloResource.addMethod('GET', new apigateway.LambdaIntegration(helloFunction), {
+      authorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO,
+    });
+
+    const docsResource = api.root.addResource('documents');
+
+    const listResource = docsResource.addResource('list');
+    listResource.addMethod('GET', new apigateway.LambdaIntegration(helloFunction), {
+      authorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO,
+    });
+
+    const viewResource = docsResource.addResource('view');
+    viewResource.addMethod('GET', new apigateway.LambdaIntegration(helloFunction), {
+      authorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO,
+    });
+
+    const saveResource = docsResource.addResource('save');
+    saveResource.addMethod('POST', new apigateway.LambdaIntegration(helloFunction), {
       authorizer,
       authorizationType: apigateway.AuthorizationType.COGNITO,
     });
