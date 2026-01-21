@@ -160,6 +160,61 @@ export function Documents() {
         }
     };
 
+    const handlePaste = async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+        const items = e.clipboardData.items;
+        for (let i = 0; i < items.length; i++) {
+            if (items[i].type.indexOf('image') !== -1) {
+                e.preventDefault();
+                const file = items[i].getAsFile();
+                if (!file) continue;
+
+                setLoading(true);
+                try {
+                    const ext = file.type.split('/')[1] || 'png';
+                    const filename = `${crypto.randomUUID()}.${ext}`;
+                    const uploadPath = currentPath ? `${currentPath}/${filename}` : filename;
+
+                    const reader = new FileReader();
+                    reader.onload = async (re) => {
+                        const base64Content = (re.target?.result as string).split(',')[1];
+                        const res = await apiFetch(`/documents/upload?path=${encodeURIComponent(uploadPath)}`, {
+                            method: 'POST',
+                            body: base64Content
+                        });
+
+                        if (!res.ok) throw new Error('Upload failed');
+
+                        // Insert markdown at cursor
+                        const textarea = e.currentTarget;
+                        const start = textarea.selectionStart;
+                        const end = textarea.selectionEnd;
+                        const text = textarea.value;
+                        const before = text.substring(0, start);
+                        const after = text.substring(end);
+                        const imageMarkdown = `\n![image](${filename})\n`;
+                        const newContent = before + imageMarkdown + after;
+
+                        setEditContent(newContent);
+                        // Force refresh file list so the new image appears in index if linked
+                        fetchFiles(currentPath);
+
+                        // Set cursor position after the inserted markdown (need to do this in next tick)
+                        setTimeout(() => {
+                            textarea.focus();
+                            const newPos = start + imageMarkdown.length;
+                            textarea.setSelectionRange(newPos, newPos);
+                        }, 0);
+                    };
+                    reader.readAsDataURL(file);
+                } catch (err: any) {
+                    alert(err.message);
+                } finally {
+                    setLoading(false);
+                }
+            }
+        }
+    };
+
     const handleFileAction = async (file: FileItem, mode: 'download' | 'view' = 'download') => {
         setLoading(true);
         try {
@@ -293,6 +348,7 @@ export function Documents() {
                         className="markdown-editor"
                         value={editContent}
                         onChange={(e) => setEditContent(e.target.value)}
+                        onPaste={handlePaste}
                     />
                     <div className="markdown-preview">
                         <ReactMarkdown components={{ a: MarkdownLink }}>{editContent}</ReactMarkdown>
