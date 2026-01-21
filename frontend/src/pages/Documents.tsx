@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { apiFetch } from '../api';
-import { FaFolder, FaFileAlt, FaEdit, FaChevronLeft, FaSave, FaUpload, FaTimes, FaPlus } from 'react-icons/fa';
+import { FaFolder, FaFileAlt, FaEdit, FaChevronLeft, FaSave, FaUpload, FaTimes, FaPlus, FaEye } from 'react-icons/fa';
 import ReactMarkdown from 'react-markdown';
 import './Documents.css';
 
@@ -12,6 +12,27 @@ interface FileItem {
     size: number;
     modTime: string;
 }
+
+const getMimeType = (filename: string): string => {
+    const ext = filename.split('.').pop()?.toLowerCase();
+    switch (ext) {
+        case 'pdf': return 'application/pdf';
+        case 'jpg':
+        case 'jpeg': return 'image/jpeg';
+        case 'png': return 'image/png';
+        case 'gif': return 'image/gif';
+        case 'webp': return 'image/webp';
+        case 'svg': return 'image/svg+xml';
+        case 'txt': return 'text/plain';
+        case 'html': return 'text/html';
+        default: return 'application/octet-stream';
+    }
+};
+
+const isViewable = (filename: string): boolean => {
+    const mime = getMimeType(filename);
+    return mime !== 'application/octet-stream' || filename.toLowerCase().endsWith('.md');
+};
 
 export function Documents() {
     const [searchParams, setSearchParams] = useSearchParams();
@@ -139,7 +160,7 @@ export function Documents() {
         }
     };
 
-    const handleDownload = async (file: FileItem) => {
+    const handleFileAction = async (file: FileItem, mode: 'download' | 'view' = 'download') => {
         setLoading(true);
         try {
             const res = await apiFetch(`/documents/view?path=${encodeURIComponent(file.path)}`);
@@ -151,15 +172,24 @@ export function Documents() {
             for (let i = 0; i < binaryString.length; i++) {
                 bytes[i] = binaryString.charCodeAt(i);
             }
-            const blob = new Blob([bytes], { type: 'application/octet-stream' });
+
+            const mimeType = mode === 'view' ? getMimeType(file.name) : 'application/octet-stream';
+            const blob = new Blob([bytes], { type: mimeType });
             const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = file.name;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            window.URL.revokeObjectURL(url);
+
+            if (mode === 'view') {
+                window.open(url, '_blank');
+                // We don't revoke immediately for view mode as the new tab needs it
+                // In a real app, you might want a way to clean these up eventually
+            } else {
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = file.name;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+            }
         } catch (err: any) {
             alert(err.message);
         } finally {
@@ -213,14 +243,25 @@ export function Documents() {
                 if (file) {
                     if (file.isDir) {
                         navigateTo(file.path);
-                    } else {
+                    } else if (file.name.endsWith('.md')) {
                         handleEdit(file);
+                    } else if (isViewable(file.name)) {
+                        handleFileAction(file, 'view');
+                    } else {
+                        handleFileAction(file, 'download');
                     }
                 } else {
                     if (href.endsWith('/') || !href.includes('.')) {
                         navigateTo(targetPath);
                     } else {
-                        handleEdit({ name: targetPath.split('/').pop() || '', path: targetPath, isDir: false, size: 0, modTime: '' });
+                        const fileName = targetPath.split('/').pop() || '';
+                        if (fileName.endsWith('.md')) {
+                            handleEdit({ name: fileName, path: targetPath, isDir: false, size: 0, modTime: '' });
+                        } else if (isViewable(fileName)) {
+                            handleFileAction({ name: fileName, path: targetPath, isDir: false, size: 0, modTime: '' }, 'view');
+                        } else {
+                            handleFileAction({ name: fileName, path: targetPath, isDir: false, size: 0, modTime: '' }, 'download');
+                        }
                     }
                 }
             }
@@ -316,10 +357,10 @@ export function Documents() {
                             <ReactMarkdown components={{ a: MarkdownLink }}>{indexContent}</ReactMarkdown>
                             <hr />
                             <h4>Directory Listing</h4>
-                            <FileList files={files} onNavigate={navigateTo} onEdit={handleEdit} onDownload={handleDownload} />
+                            <FileList files={files} onNavigate={navigateTo} onEdit={handleEdit} onFileAction={handleFileAction} />
                         </div>
                     ) : (
-                        <FileList files={files} onNavigate={navigateTo} onEdit={handleEdit} onDownload={handleDownload} />
+                        <FileList files={files} onNavigate={navigateTo} onEdit={handleEdit} onFileAction={handleFileAction} />
                     )}
                 </div>
             )}
@@ -327,11 +368,11 @@ export function Documents() {
     );
 }
 
-function FileList({ files, onNavigate, onEdit, onDownload }: {
+function FileList({ files, onNavigate, onEdit, onFileAction }: {
     files: FileItem[],
     onNavigate: (path: string) => void,
     onEdit: (file: FileItem) => void,
-    onDownload: (file: FileItem) => void
+    onFileAction: (file: FileItem, mode: 'download' | 'view') => void
 }) {
     return (
         <div className="file-list card">
@@ -362,8 +403,13 @@ function FileList({ files, onNavigate, onEdit, onDownload }: {
                                             <FaEdit />
                                         </button>
                                     )}
+                                    {!file.isDir && isViewable(file.name) && (
+                                        <button onClick={() => onFileAction(file, 'view')} className="btn-icon" title="View in new tab">
+                                            <FaEye />
+                                        </button>
+                                    )}
                                     {!file.isDir && (
-                                        <button onClick={() => onDownload(file)} className="btn-icon" title="Download">
+                                        <button onClick={() => onFileAction(file, 'download')} className="btn-icon" title="Download">
                                             <FaUpload style={{ transform: 'rotate(180deg)' }} />
                                         </button>
                                     )}
