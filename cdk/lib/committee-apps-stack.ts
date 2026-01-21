@@ -144,6 +144,12 @@ export class CommitteeAppsStack extends cdk.Stack {
       authorizationType: apigateway.AuthorizationType.COGNITO,
     });
 
+    const uploadResource = docsResource.addResource('upload');
+    uploadResource.addMethod('POST', new apigateway.LambdaIntegration(helloFunction), {
+      authorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO,
+    });
+
     const mkdirResource = docsResource.addResource('mkdir');
     mkdirResource.addMethod('POST', new apigateway.LambdaIntegration(helloFunction), {
       authorizer,
