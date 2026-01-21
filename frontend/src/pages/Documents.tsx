@@ -34,6 +34,14 @@ const isViewable = (filename: string): boolean => {
     return mime !== 'application/octet-stream' || filename.toLowerCase().endsWith('.md');
 };
 
+const extractH1 = (markdown: string | null): string | null => {
+    if (!markdown) return null;
+    const match = markdown.match(/^#\s+(.+)$/m);
+    return match ? match[1].trim() : null;
+};
+
+import { usePageTitle } from '../hooks/usePageTitle';
+
 export function Documents() {
     const [searchParams, setSearchParams] = useSearchParams();
     const currentPath = searchParams.get('path') || '';
@@ -53,6 +61,11 @@ export function Documents() {
     const [editingFile, setEditingFile] = useState<FileItem | null>(null);
     const [editContent, setEditContent] = useState('');
     const [indexContent, setIndexContent] = useState<string | null>(null);
+
+    // Set page title: H1 from editor > filename > H1 from index > folder name > "Documents"
+    const title = (editingFile ? (extractH1(editContent) || editingFile.name) : (indexContent ? extractH1(indexContent) : null))
+        || (currentPath.split('/').filter(Boolean).pop() || 'Documents');
+    usePageTitle(title);
 
     const fetchFiles = async (path: string) => {
         setLoading(true);

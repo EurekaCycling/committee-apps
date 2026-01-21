@@ -1,4 +1,7 @@
+import { usePageTitle } from '../hooks/usePageTitle';
+
 export function FinancialReports() {
+    usePageTitle('Financial Reports');
     return (
         <div className="page-container">
             <h1>Financial Reports</h1>

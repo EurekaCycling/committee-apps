@@ -24,7 +24,10 @@ Amplify.configure({
 });
 import { ProtectedRoute } from './components/ProtectedRoute';
 
+import { usePageTitle } from './hooks/usePageTitle';
+
 function Home() {
+  usePageTitle('Home');
   const [message, setMessage] = useState<string>('Loading...');
   const { user, role, isLoading } = useAuth();
 

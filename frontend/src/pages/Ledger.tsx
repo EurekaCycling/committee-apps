@@ -11,7 +11,10 @@ const ICONS = {
     CARD: <FaCreditCard />
 };
 
+import { usePageTitle } from '../hooks/usePageTitle';
+
 export function Ledger() {
+    usePageTitle('Ledger');
     const [type, setType] = useState<TransactionType>('BANK');
     const [data, setData] = useState<MonthlyLedger[]>([]);
     const [loading, setLoading] = useState(false);
