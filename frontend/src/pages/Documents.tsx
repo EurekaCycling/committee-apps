@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { apiFetch } from '../api';
 import { FaFolder, FaFileAlt, FaEdit, FaChevronLeft, FaSave, FaUpload, FaTimes, FaPlus } from 'react-icons/fa';
 import ReactMarkdown from 'react-markdown';
@@ -13,7 +14,18 @@ interface FileItem {
 }
 
 export function Documents() {
-    const [currentPath, setCurrentPath] = useState('');
+    const [searchParams, setSearchParams] = useSearchParams();
+    const currentPath = searchParams.get('path') || '';
+
+    // Helper to update path in URL
+    const setCurrentPath = (path: string) => {
+        if (path) {
+            setSearchParams({ path });
+        } else {
+            setSearchParams({});
+        }
+    };
+
     const [files, setFiles] = useState<FileItem[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
