@@ -8,6 +8,8 @@ import (
 	"os"
 	"time"
 
+	"strings"
+
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/eureka-cycling/committee-apps/backend/internal/auth"
@@ -21,6 +23,37 @@ type DocumentItem struct {
 	storage.FileItem
 	Token   string `json:"token,omitempty"`
 	Expires int64  `json:"expires,omitempty"`
+}
+
+func getMimeType(path string) string {
+	ext := ""
+	lastDot := strings.LastIndex(path, ".")
+	if lastDot != -1 {
+		ext = strings.ToLower(path[lastDot+1:])
+	}
+
+	switch ext {
+	case "pdf":
+		return "application/pdf"
+	case "jpg", "jpeg":
+		return "image/jpeg"
+	case "png":
+		return "image/png"
+	case "gif":
+		return "image/gif"
+	case "webp":
+		return "image/webp"
+	case "svg":
+		return "image/svg+xml"
+	case "txt":
+		return "text/plain"
+	case "html":
+		return "text/html"
+	case "md":
+		return "text/markdown"
+	default:
+		return "application/octet-stream"
+	}
 }
 
 func init() {
@@ -106,7 +139,7 @@ func handleRequest(ctx context.Context, request events.APIGatewayProxyRequest) (
 			StatusCode:      200,
 			Headers: map[string]string{
 				"Access-Control-Allow-Origin": "*",
-				"Content-Type":                "application/octet-stream",
+				"Content-Type":                getMimeType(path),
 			},
 		}, nil
 
@@ -122,7 +155,7 @@ func handleRequest(ctx context.Context, request events.APIGatewayProxyRequest) (
 			StatusCode:      200,
 			Headers: map[string]string{
 				"Access-Control-Allow-Origin": "*",
-				"Content-Type":                "application/octet-stream",
+				"Content-Type":                getMimeType(path),
 			},
 		}, nil
 
