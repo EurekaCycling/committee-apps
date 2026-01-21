@@ -103,6 +103,17 @@ func handleRequest(ctx context.Context, request events.APIGatewayProxyRequest) (
 		}
 		return events.APIGatewayProxyResponse{Body: `{"status":"ok"}`, StatusCode: 200, Headers: headers}, nil
 
+	case "/documents/mkdir":
+		if request.HTTPMethod != "POST" {
+			return events.APIGatewayProxyResponse{StatusCode: 405, Headers: headers}, nil
+		}
+		path := request.QueryStringParameters["path"]
+		err := storageProv.Mkdir(path)
+		if err != nil {
+			return errorResponse(err, headers), nil
+		}
+		return events.APIGatewayProxyResponse{Body: `{"status":"ok"}`, StatusCode: 200, Headers: headers}, nil
+
 	default:
 		return events.APIGatewayProxyResponse{
 			Body:       `{"error": "Not Found"}`,

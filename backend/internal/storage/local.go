@@ -56,6 +56,11 @@ func (l *LocalStorageProvider) Save(path string, content []byte) error {
 	return ioutil.WriteFile(fullPath, content, 0644)
 }
 
+func (l *LocalStorageProvider) Mkdir(path string) error {
+	fullPath := filepath.Join(l.RootDir, path)
+	return os.MkdirAll(fullPath, 0755)
+}
+
 func (l *LocalStorageProvider) Delete(path string) error {
 	fullPath := filepath.Join(l.RootDir, path)
 	return os.RemoveAll(fullPath)

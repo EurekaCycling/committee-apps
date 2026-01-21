@@ -70,6 +70,16 @@
 .markdown-view {
     padding: 2rem;
     position: relative;
+    line-height: 1.6;
+}
+
+.markdown-view a {
+    color: var(--accent-color);
+    text-decoration: none;
+}
+
+.markdown-view a:hover {
+    text-decoration: underline;
 }
 
 .index-header {
@@ -123,15 +133,55 @@
     overflow-y: auto;
 }
 
+.btn-primary,
+.btn-secondary,
+.btn-outline,
+.upload-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.6em 1.2em;
+    border-radius: 8px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 0.9rem;
+    border: 1px solid transparent;
+}
+
 .btn-primary {
     background-color: var(--accent-color);
     color: white;
 }
 
+.btn-primary:hover {
+    opacity: 0.9;
+}
+
 .btn-secondary {
     background-color: var(--bg-secondary);
     color: var(--text-primary);
-    border: 1px solid var(--border-color);
+    border-color: var(--border-color);
+}
+
+.btn-secondary:hover {
+    background-color: var(--bg-tertiary);
+}
+
+.btn-outline {
+    background: transparent;
+    border-color: var(--accent-color);
+    color: var(--accent-color);
+}
+
+.btn-outline:hover {
+    background-color: var(--accent-color);
+    color: white;
+}
+
+.upload-label {
+    background-color: var(--accent-color);
+    color: white;
 }
 
 .docs-actions {

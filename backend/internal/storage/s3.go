@@ -95,6 +95,17 @@ func (s *S3StorageProvider) Save(path string, content []byte) error {
 	return err
 }
 
+func (s *S3StorageProvider) Mkdir(path string) error {
+	if !strings.HasSuffix(path, "/") {
+		path += "/"
+	}
+	_, err := s.Client.PutObject(context.TODO(), &s3.PutObjectInput{
+		Bucket: aws.String(s.Bucket),
+		Key:    aws.String(path),
+	})
+	return err
+}
+
 func (s *S3StorageProvider) Delete(path string) error {
 	_, err := s.Client.DeleteObject(context.TODO(), &s3.DeleteObjectInput{
 		Bucket: aws.String(s.Bucket),

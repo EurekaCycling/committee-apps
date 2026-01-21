@@ -86,7 +86,6 @@ export function Documents() {
         if (!editingFile) return;
         setLoading(true);
         try {
-            // For saving text, we can use /documents/save
             const res = await apiFetch(`/documents/save?path=${encodeURIComponent(editingFile.path)}`, {
                 method: 'POST',
                 body: editContent
@@ -114,10 +113,7 @@ export function Documents() {
 
                 const res = await apiFetch(`/documents/upload?path=${encodeURIComponent(uploadPath)}`, {
                     method: 'POST',
-                    body: base64Content,
-                    headers: {
-                        'X-Amz-Is-Base64': 'true' // Hint for backend if needed, but we handle it via IsBase64Encoded flag in Lambda
-                    }
+                    body: base64Content
                 });
 
                 if (!res.ok) throw new Error('Upload failed');
@@ -131,6 +127,53 @@ export function Documents() {
         }
     };
 
+    const handleDownload = async (file: FileItem) => {
+        setLoading(true);
+        try {
+            const res = await apiFetch(`/documents/view?path=${encodeURIComponent(file.path)}`);
+            if (!res.ok) throw new Error('Failed to load file');
+            const base64 = await res.text();
+
+            const binaryString = window.atob(base64);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            const blob = new Blob([bytes], { type: 'application/octet-stream' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = file.name;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        } catch (err: any) {
+            alert(err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const createFolder = async () => {
+        const name = prompt('Enter folder name:');
+        if (name) {
+            const path = currentPath ? `${currentPath}/${name}` : name;
+            setLoading(true);
+            try {
+                const res = await apiFetch(`/documents/mkdir?path=${encodeURIComponent(path)}`, {
+                    method: 'POST'
+                });
+                if (!res.ok) throw new Error('Failed to create folder');
+                fetchFiles(currentPath);
+            } catch (err: any) {
+                alert(err.message);
+            } finally {
+                setLoading(false);
+            }
+        }
+    };
+
     const createMarkdown = () => {
         const name = prompt('Enter filename (e.g. notes.md):');
         if (name) {
@@ -139,6 +182,43 @@ export function Documents() {
             setEditingFile({ name: fileName, path, isDir: false, size: 0, modTime: '' });
             setEditContent('# ' + fileName + '\n\nContent here...');
         }
+    };
+
+    const MarkdownLink = ({ href, children }: any) => {
+        const handleClick = (e: React.MouseEvent) => {
+            if (href && !href.startsWith('http') && !href.startsWith('mailto')) {
+                e.preventDefault();
+                let targetPath = href;
+                if (!href.startsWith('/')) {
+                    targetPath = currentPath ? `${currentPath}/${href}` : href;
+                } else {
+                    targetPath = href.substring(1);
+                }
+
+                targetPath = targetPath.replace(/\/+/g, '/').replace(/\/$/, '');
+
+                const file = files.find(f => f.path === targetPath || f.path === targetPath + '/');
+                if (file) {
+                    if (file.isDir) {
+                        navigateTo(file.path);
+                    } else {
+                        handleEdit(file);
+                    }
+                } else {
+                    if (href.endsWith('/') || !href.includes('.')) {
+                        navigateTo(targetPath);
+                    } else {
+                        handleEdit({ name: targetPath.split('/').pop() || '', path: targetPath, isDir: false, size: 0, modTime: '' });
+                    }
+                }
+            }
+        };
+
+        return (
+            <a href={href} onClick={handleClick} target={href?.startsWith('http') ? '_blank' : undefined} rel="noreferrer">
+                {children}
+            </a>
+        );
     };
 
     if (editingFile) {
@@ -162,7 +242,7 @@ export function Documents() {
                         onChange={(e) => setEditContent(e.target.value)}
                     />
                     <div className="markdown-preview">
-                        <ReactMarkdown>{editContent}</ReactMarkdown>
+                        <ReactMarkdown components={{ a: MarkdownLink }}>{editContent}</ReactMarkdown>
                     </div>
                 </div>
             </div>
@@ -187,6 +267,9 @@ export function Documents() {
                     ))}
                 </div>
                 <div className="docs-actions">
+                    <button onClick={createFolder} className="btn-outline">
+                        <FaFolder /> New Folder
+                    </button>
                     <button onClick={createMarkdown} className="btn-outline">
                         <FaPlus /> New MD
                     </button>
@@ -218,13 +301,13 @@ export function Documents() {
                                     <FaEdit />
                                 </button>
                             </div>
-                            <ReactMarkdown>{indexContent}</ReactMarkdown>
+                            <ReactMarkdown components={{ a: MarkdownLink }}>{indexContent}</ReactMarkdown>
                             <hr />
                             <h4>Directory Listing</h4>
-                            <FileList files={files} onNavigate={navigateTo} onEdit={handleEdit} />
+                            <FileList files={files} onNavigate={navigateTo} onEdit={handleEdit} onDownload={handleDownload} />
                         </div>
                     ) : (
-                        <FileList files={files} onNavigate={navigateTo} onEdit={handleEdit} />
+                        <FileList files={files} onNavigate={navigateTo} onEdit={handleEdit} onDownload={handleDownload} />
                     )}
                 </div>
             )}
@@ -232,10 +315,11 @@ export function Documents() {
     );
 }
 
-function FileList({ files, onNavigate, onEdit }: {
+function FileList({ files, onNavigate, onEdit, onDownload }: {
     files: FileItem[],
     onNavigate: (path: string) => void,
-    onEdit: (file: FileItem) => void
+    onEdit: (file: FileItem) => void,
+    onDownload: (file: FileItem) => void
 }) {
     return (
         <div className="file-list card">
@@ -251,7 +335,7 @@ function FileList({ files, onNavigate, onEdit }: {
                 </thead>
                 <tbody>
                     {files.sort((a, b) => (a.isDir === b.isDir ? a.name.localeCompare(b.name) : a.isDir ? -1 : 1))
-                        .filter(f => f.name.toLowerCase() !== 'index.md') // Hide index.md from listing if it's already rendered
+                        .filter(f => f.name.toLowerCase() !== 'index.md')
                         .map(file => (
                             <tr key={file.path}>
                                 <td onClick={() => file.isDir && onNavigate(file.path)} className={file.isDir ? 'clickable' : ''}>
@@ -262,8 +346,13 @@ function FileList({ files, onNavigate, onEdit }: {
                                 <td>{file.modTime ? new Date(file.modTime).toLocaleDateString() : '-'}</td>
                                 <td>
                                     {!file.isDir && file.name.endsWith('.md') && (
-                                        <button onClick={() => onEdit(file)} className="btn-icon">
+                                        <button onClick={() => onEdit(file)} className="btn-icon" title="Edit">
                                             <FaEdit />
+                                        </button>
+                                    )}
+                                    {!file.isDir && (
+                                        <button onClick={() => onDownload(file)} className="btn-icon" title="Download">
+                                            <FaUpload style={{ transform: 'rotate(180deg)' }} />
                                         </button>
                                     )}
                                 </td>

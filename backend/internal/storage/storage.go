@@ -18,5 +18,6 @@ type StorageProvider interface {
 	List(path string) ([]FileItem, error)
 	Get(path string) ([]byte, error)
 	Save(path string, content []byte) error
+	Mkdir(path string) error
 	Delete(path string) error
 }
