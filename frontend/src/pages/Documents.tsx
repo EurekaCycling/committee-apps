@@ -188,6 +188,10 @@ export function Documents() {
                     const uploadPath = currentPath ? `${currentPath}/${filename}` : filename;
 
                     const reader = new FileReader();
+                    const textarea = e.currentTarget;
+                    const start = textarea.selectionStart;
+                    const end = textarea.selectionEnd;
+
                     reader.onload = async (re) => {
                         const base64Content = (re.target?.result as string).split(',')[1];
                         const res = await apiFetch(`/documents/upload?path=${encodeURIComponent(uploadPath)}`, {
@@ -197,10 +201,7 @@ export function Documents() {
 
                         if (!res.ok) throw new Error('Upload failed');
 
-                        // Insert markdown at cursor
-                        const textarea = e.currentTarget;
-                        const start = textarea.selectionStart;
-                        const end = textarea.selectionEnd;
+                        // Insert markdown at previously captured selection
                         const text = textarea.value;
                         const before = text.substring(0, start);
                         const after = text.substring(end);
