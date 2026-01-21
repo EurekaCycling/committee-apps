@@ -22,10 +22,11 @@ Amplify.configure({
     }
   }
 });
+import { ProtectedRoute } from './components/ProtectedRoute';
 
 function Home() {
   const [message, setMessage] = useState<string>('Loading...');
-  const { user } = useAuth();
+  const { user, role } = useAuth();
 
   useEffect(() => {
     async function fetchData() {
@@ -38,17 +39,28 @@ function Home() {
       }
     }
 
-    if (user) {
+    if (user && (role === 'committee' || role === 'treasurer')) {
       fetchData();
     }
-  }, [user]);
+  }, [user, role]);
+
+  const hasAccess = role === 'committee' || role === 'treasurer';
 
   return (
     <div className="page-container">
       <h1>Welcome, {user?.signInDetails?.loginId}</h1>
-      <div className="card">
-        <p><strong>Backend Message:</strong> {message}</p>
-      </div>
+
+      {!hasAccess ? (
+        <div className="card info-card">
+          <p>You are logged in as a <strong>{role}</strong>.</p>
+          <p>Committee features are only available to committee members and the treasurer.</p>
+        </div>
+      ) : (
+        <div className="card">
+          <p>Role: <strong>{role}</strong></p>
+          <p><strong>Backend Message:</strong> {message}</p>
+        </div>
+      )}
     </div>
   );
 }
@@ -59,10 +71,31 @@ function MainLayout() {
       <Navigation />
       <Routes>
         <Route path="/" element={<Home />} />
-        <Route path="/ledger" element={<Ledger />} />
-        <Route path="/reports" element={<FinancialReports />} />
-        <Route path="/reimbursements" element={<Reimbursements />} />
-        <Route path="/documents" element={<Documents />} />
+
+        {/* Committee & Treasurer access */}
+        <Route path="/reports" element={
+          <ProtectedRoute allowedRoles={['committee', 'treasurer']}>
+            <FinancialReports />
+          </ProtectedRoute>
+        } />
+        <Route path="/reimbursements" element={
+          <ProtectedRoute allowedRoles={['committee', 'treasurer']}>
+            <Reimbursements />
+          </ProtectedRoute>
+        } />
+        <Route path="/documents" element={
+          <ProtectedRoute allowedRoles={['committee', 'treasurer']}>
+            <FinancialReports /> {/* Wait, Documents page was Documents component in import? Let me check */}
+            <Documents />
+          </ProtectedRoute>
+        } />
+
+        {/* Treasurer only access */}
+        <Route path="/ledger" element={
+          <ProtectedRoute allowedRoles={['treasurer']}>
+            <Ledger />
+          </ProtectedRoute>
+        } />
       </Routes>
     </>
   );

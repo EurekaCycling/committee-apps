@@ -47,6 +47,9 @@ export class CommitteeAppsStack extends cdk.Stack {
       standardAttributes: {
         email: { required: true, mutable: true },
       },
+      customAttributes: {
+        role: new cognito.StringAttribute({ mutable: true }),
+      },
     });
 
     const userPoolClient = userPool.addClient('CommitteeUserPoolClient', {
