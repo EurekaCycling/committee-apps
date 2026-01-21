@@ -40,6 +40,14 @@ Resources:
             Path: /hello
             Method: GET
             RestApiId: !Ref ServerlessRestApi
+        DocumentsRaw:
+          Type: Api
+          Properties:
+            Path: /documents/raw
+            Method: GET
+            RestApiId: !Ref ServerlessRestApi
+            Auth:
+              Authorizer: NONE
 
   ServerlessRestApi:
     Type: AWS::Serverless::Api

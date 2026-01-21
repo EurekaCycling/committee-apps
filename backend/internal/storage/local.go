@@ -1,9 +1,13 @@
 package storage
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"time"
+
+	"github.com/eureka-cycling/committee-apps/backend/internal/auth"
 )
 
 type LocalStorageProvider struct {
@@ -22,7 +26,7 @@ func NewLocalStorageProvider(rootDir string) (*LocalStorageProvider, error) {
 	return &LocalStorageProvider{RootDir: absRoot}, nil
 }
 
-func (l *LocalStorageProvider) List(path string) ([]FileItem, error) {
+func (l *LocalStorageProvider) List(path string, secret string) ([]FileItem, error) {
 	fullPath := filepath.Join(l.RootDir, path)
 	entries, err := ioutil.ReadDir(fullPath)
 	if err != nil {
@@ -31,12 +35,19 @@ func (l *LocalStorageProvider) List(path string) ([]FileItem, error) {
 
 	var items []FileItem
 	for _, entry := range entries {
+		itemPath := filepath.Join(path, entry.Name())
+		url := ""
+		if !entry.IsDir() {
+			url, _ = l.GetURL(itemPath, secret)
+		}
+
 		items = append(items, FileItem{
 			Name:    entry.Name(),
-			Path:    filepath.Join(path, entry.Name()),
+			Path:    itemPath,
 			IsDir:   entry.IsDir(),
 			Size:    entry.Size(),
 			ModTime: entry.ModTime(),
+			URL:     url,
 		})
 	}
 	return items, nil
@@ -45,6 +56,12 @@ func (l *LocalStorageProvider) List(path string) ([]FileItem, error) {
 func (l *LocalStorageProvider) Get(path string) ([]byte, error) {
 	fullPath := filepath.Join(l.RootDir, path)
 	return ioutil.ReadFile(fullPath)
+}
+
+func (l *LocalStorageProvider) GetURL(path string, secret string) (string, error) {
+	expires := time.Now().Add(24 * time.Hour).Unix()
+	token := auth.GenerateToken(path, expires, secret)
+	return fmt.Sprintf("/documents/raw?path=%s&expires=%d&token=%s", path, expires, token), nil
 }
 
 func (l *LocalStorageProvider) Save(path string, content []byte) error {

@@ -11,6 +11,7 @@ interface FileItem {
     isDir: boolean;
     size: number;
     modTime: string;
+    url?: string;
 }
 
 const getMimeType = (filename: string): string => {
@@ -229,40 +230,21 @@ export function Documents() {
         }
     };
 
-    const handleFileAction = async (file: FileItem, mode: 'download' | 'view' = 'download') => {
-        setLoading(true);
-        try {
-            const res = await apiFetch(`/documents/view?path=${encodeURIComponent(file.path)}`);
-            if (!res.ok) throw new Error('Failed to load file');
-            const base64 = await res.text();
+    const handleFileAction = (file: FileItem, mode: 'download' | 'view' = 'download') => {
+        if (!file.url) {
+            alert('File URL not available');
+            return;
+        }
 
-            const binaryString = window.atob(base64);
-            const bytes = new Uint8Array(binaryString.length);
-            for (let i = 0; i < binaryString.length; i++) {
-                bytes[i] = binaryString.charCodeAt(i);
-            }
-
-            const mimeType = mode === 'view' ? getMimeType(file.name) : 'application/octet-stream';
-            const blob = new Blob([bytes], { type: mimeType });
-            const url = window.URL.createObjectURL(blob);
-
-            if (mode === 'view') {
-                window.open(url, '_blank');
-                // We don't revoke immediately for view mode as the new tab needs it
-                // In a real app, you might want a way to clean these up eventually
-            } else {
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = file.name;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                window.URL.revokeObjectURL(url);
-            }
-        } catch (err: any) {
-            alert(err.message);
-        } finally {
-            setLoading(false);
+        if (mode === 'view') {
+            window.open(file.url, '_blank');
+        } else {
+            const a = document.createElement('a');
+            a.href = file.url;
+            a.download = file.name;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
         }
     };
 
@@ -293,6 +275,25 @@ export function Documents() {
             setEditingFile({ name: fileName, path, isDir: false, size: 0, modTime: '' });
             setEditContent('# ' + fileName + '\n\nContent here...');
         }
+    };
+
+    const MarkdownImage = ({ src, alt }: any) => {
+        if (!src) return null;
+        // Resolve relative path to full path
+        let targetPath = src;
+        if (!src.startsWith('/') && !src.startsWith('http')) {
+            targetPath = currentPath ? `${currentPath}/${src}` : src;
+        } else if (src.startsWith('/')) {
+            targetPath = src.substring(1);
+        }
+
+        targetPath = targetPath.replace(/\/+/g, '/').replace(/\/$/, '');
+
+        // Find file in current file list to get its signed URL
+        const file = files.find(f => f.path === targetPath);
+        const imageUrl = file?.url || `/documents/view?path=${encodeURIComponent(targetPath)}`;
+
+        return <img src={imageUrl} alt={alt} style={{ maxWidth: '100%' }} />;
     };
 
     const MarkdownLink = ({ href, children }: any) => {
@@ -365,7 +366,7 @@ export function Documents() {
                         onPaste={handlePaste}
                     />
                     <div className="markdown-preview">
-                        <ReactMarkdown components={{ a: MarkdownLink }}>{editContent}</ReactMarkdown>
+                        <ReactMarkdown components={{ a: MarkdownLink, img: MarkdownImage }}>{editContent}</ReactMarkdown>
                     </div>
                 </div>
             </div>
@@ -424,7 +425,7 @@ export function Documents() {
                                     <FaEdit />
                                 </button>
                             </div>
-                            <ReactMarkdown components={{ a: MarkdownLink }}>{indexContent}</ReactMarkdown>
+                            <ReactMarkdown components={{ a: MarkdownLink, img: MarkdownImage }}>{indexContent}</ReactMarkdown>
                             <hr />
                             <h4>Directory Listing</h4>
                             <FileList files={files} onNavigate={navigateTo} onEdit={handleEdit} onFileAction={handleFileAction} />

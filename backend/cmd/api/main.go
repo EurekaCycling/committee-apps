@@ -4,16 +4,24 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"os"
+	"time"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
+	"github.com/eureka-cycling/committee-apps/backend/internal/auth"
 	"github.com/eureka-cycling/committee-apps/backend/internal/storage"
 )
 
 var storageProv storage.StorageProvider
+var signingSecret string
 
 func init() {
+	signingSecret = os.Getenv("DOCUMENTS_SIGNING_SECRET")
+	if signingSecret == "" {
+		signingSecret = "default-development-secret"
+	}
 	bucketName := os.Getenv("DOCUMENTS_BUCKET_NAME")
 	if bucketName != "" {
 		prov, err := storage.NewS3StorageProvider(context.Background(), bucketName)
@@ -47,12 +55,43 @@ func handleRequest(ctx context.Context, request events.APIGatewayProxyRequest) (
 
 	case "/documents/list":
 		path := request.QueryStringParameters["path"]
-		items, err := storageProv.List(path)
+		items, err := storageProv.List(path, signingSecret)
 		if err != nil {
 			return errorResponse(err, headers), nil
 		}
 		body, _ := json.Marshal(items)
 		return events.APIGatewayProxyResponse{Body: string(body), StatusCode: 200, Headers: headers}, nil
+
+	case "/documents/raw":
+		path := request.QueryStringParameters["path"]
+		token := request.QueryStringParameters["token"]
+		expiresStr := request.QueryStringParameters["expires"]
+
+		var expires int64
+		fmt.Sscanf(expiresStr, "%d", &expires)
+
+		if !auth.VerifyToken(path, expires, token, signingSecret) {
+			return events.APIGatewayProxyResponse{Body: `{"error": "Unauthorized"}`, StatusCode: 401, Headers: headers}, nil
+		}
+
+		if time.Now().Unix() > expires {
+			return events.APIGatewayProxyResponse{Body: `{"error": "Expired"}`, StatusCode: 401, Headers: headers}, nil
+		}
+
+		content, err := storageProv.Get(path)
+		if err != nil {
+			return errorResponse(err, headers), nil
+		}
+
+		return events.APIGatewayProxyResponse{
+			Body:            base64.StdEncoding.EncodeToString(content),
+			IsBase64Encoded: true,
+			StatusCode:      200,
+			Headers: map[string]string{
+				"Access-Control-Allow-Origin": "*",
+				"Content-Type":                "application/octet-stream",
+			},
+		}, nil
 
 	case "/documents/view":
 		path := request.QueryStringParameters["path"]
