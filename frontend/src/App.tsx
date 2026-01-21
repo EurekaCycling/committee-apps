@@ -85,7 +85,6 @@ function MainLayout() {
         } />
         <Route path="/documents" element={
           <ProtectedRoute allowedRoles={['committee', 'treasurer']}>
-            <FinancialReports /> {/* Wait, Documents page was Documents component in import? Let me check */}
             <Documents />
           </ProtectedRoute>
         } />
@@ -109,7 +108,7 @@ function App() {
   }
 
   return (
-    <Authenticator>
+    <Authenticator hideSignUp>
       <MainLayout />
     </Authenticator>
   );
