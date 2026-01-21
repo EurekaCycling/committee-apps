@@ -17,6 +17,12 @@ import (
 var storageProv storage.StorageProvider
 var signingSecret string
 
+type DocumentItem struct {
+	storage.FileItem
+	Token   string `json:"token,omitempty"`
+	Expires int64  `json:"expires,omitempty"`
+}
+
 func init() {
 	signingSecret = os.Getenv("DOCUMENTS_SIGNING_SECRET")
 	if signingSecret == "" {
@@ -55,11 +61,22 @@ func handleRequest(ctx context.Context, request events.APIGatewayProxyRequest) (
 
 	case "/documents/list":
 		path := request.QueryStringParameters["path"]
-		items, err := storageProv.List(path, signingSecret)
+		items, err := storageProv.List(path)
 		if err != nil {
 			return errorResponse(err, headers), nil
 		}
-		body, _ := json.Marshal(items)
+
+		enrichedItems := make([]DocumentItem, len(items))
+		expires := time.Now().Add(24 * time.Hour).Unix()
+		for i, item := range items {
+			enrichedItems[i] = DocumentItem{FileItem: item}
+			if !item.IsDir {
+				enrichedItems[i].Token = auth.GenerateToken(item.Path, expires, signingSecret)
+				enrichedItems[i].Expires = expires
+			}
+		}
+
+		body, _ := json.Marshal(enrichedItems)
 		return events.APIGatewayProxyResponse{Body: string(body), StatusCode: 200, Headers: headers}, nil
 
 	case "/documents/raw":

@@ -11,14 +11,12 @@ type FileItem struct {
 	IsDir   bool      `json:"isDir"`
 	Size    int64     `json:"size"`
 	ModTime time.Time `json:"modTime"`
-	URL     string    `json:"url,omitempty"`
 }
 
 // StorageProvider defines the interface for backend file operations
 type StorageProvider interface {
-	List(path string, secret string) ([]FileItem, error)
+	List(path string) ([]FileItem, error)
 	Get(path string) ([]byte, error)
-	GetURL(path string, secret string) (string, error)
 	Save(path string, content []byte) error
 	Mkdir(path string) error
 	Delete(path string) error

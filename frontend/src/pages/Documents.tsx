@@ -11,7 +11,8 @@ interface FileItem {
     isDir: boolean;
     size: number;
     modTime: string;
-    url?: string;
+    token?: string;
+    expires?: number;
 }
 
 const getMimeType = (filename: string): string => {
@@ -230,17 +231,24 @@ export function Documents() {
         }
     };
 
+    const getFileUrl = (file: FileItem) => {
+        if (!file.token || !file.expires) return '';
+        const apiBase = import.meta.env.PROD ? 'https://api.committee.eurekacycling.org.au' : 'http://127.0.0.1:3000';
+        return `${apiBase}/documents/raw?path=${encodeURIComponent(file.path)}&token=${file.token}&expires=${file.expires}`;
+    };
+
     const handleFileAction = (file: FileItem, mode: 'download' | 'view' = 'download') => {
-        if (!file.url) {
-            alert('File URL not available');
+        const url = getFileUrl(file);
+        if (!url) {
+            alert('File access not available (missing signature)');
             return;
         }
 
         if (mode === 'view') {
-            window.open(file.url, '_blank');
+            window.open(url, '_blank');
         } else {
             const a = document.createElement('a');
-            a.href = file.url;
+            a.href = url;
             a.download = file.name;
             document.body.appendChild(a);
             a.click();
@@ -289,11 +297,15 @@ export function Documents() {
 
         targetPath = targetPath.replace(/\/+/g, '/').replace(/\/$/, '');
 
-        // Find file in current file list to get its signed URL
+        // Find file in current file list to get its signature components
         const file = files.find(f => f.path === targetPath);
-        const imageUrl = file?.url || `/documents/view?path=${encodeURIComponent(targetPath)}`;
+        if (file) {
+            const imageUrl = getFileUrl(file);
+            if (imageUrl) return <img src={imageUrl} alt={alt} style={{ maxWidth: '100%' }} />;
+        }
 
-        return <img src={imageUrl} alt={alt} style={{ maxWidth: '100%' }} />;
+        // Fallback or missing signature
+        return <span className="error-text">Image not found or access expired</span>;
     };
 
     const MarkdownLink = ({ href, children }: any) => {

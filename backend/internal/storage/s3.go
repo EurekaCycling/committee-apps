@@ -24,7 +24,7 @@ func NewS3StorageProvider(ctx context.Context, bucket string) (*S3StorageProvide
 	return &S3StorageProvider{Client: client, Bucket: bucket}, nil
 }
 
-func (s *S3StorageProvider) List(path string, secret string) ([]FileItem, error) {
+func (s *S3StorageProvider) List(path string) ([]FileItem, error) {
 	if path != "" && !strings.HasSuffix(path, "/") {
 		path += "/"
 	}
@@ -62,14 +62,12 @@ func (s *S3StorageProvider) List(path string, secret string) ([]FileItem, error)
 		if name == "" {
 			continue
 		}
-		url, _ := s.GetURL(*obj.Key, secret)
 		items = append(items, FileItem{
 			Name:    name,
 			Path:    *obj.Key,
 			IsDir:   false,
 			Size:    *obj.Size,
 			ModTime: *obj.LastModified,
-			URL:     url,
 		})
 	}
 
@@ -86,20 +84,6 @@ func (s *S3StorageProvider) Get(path string) ([]byte, error) {
 	}
 	defer result.Body.Close()
 	return ioutil.ReadAll(result.Body)
-}
-
-func (s *S3StorageProvider) GetURL(path string, secret string) (string, error) {
-	presignClient := s3.NewPresignClient(s.Client)
-	request, err := presignClient.PresignGetObject(context.TODO(), &s3.GetObjectInput{
-		Bucket: aws.String(s.Bucket),
-		Key:    aws.String(path),
-	}, func(opts *s3.PresignOptions) {
-		opts.Expires = 3600 // 1 hour
-	})
-	if err != nil {
-		return "", err
-	}
-	return request.URL, nil
 }
 
 func (s *S3StorageProvider) Save(path string, content []byte) error {
