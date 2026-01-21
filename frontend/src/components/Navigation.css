@@ -3,15 +3,15 @@
     justify-content: space-between;
     align-items: center;
     padding: 1rem 2rem;
-    background-color: #2c3e50;
-    color: white;
-
+    background-color: var(--nav-bg);
+    color: var(--nav-text);
     width: 100%;
 }
 
 .nav-brand {
     font-size: 1.5rem;
     font-weight: bold;
+    color: var(--nav-text);
 }
 
 .nav-links {
@@ -22,39 +22,48 @@
     padding: 0;
 }
 
-.nav-links micros {
-    display: inline-block;
-}
-
 .nav-links a {
-    color: #ecf0f1;
+    color: var(--nav-text);
     text-decoration: none;
     font-weight: 500;
     padding: 0.5rem 1rem;
     border-radius: 4px;
-    transition: background-color 0.3s;
+    transition: background-color 0.3s, color 0.3s;
+    opacity: 0.8;
 }
 
 .nav-links a:hover,
 .nav-links a.active {
-    background-color: #34495e;
+    background-color: rgba(255, 255, 255, 0.1);
+    opacity: 1;
+}
+
+@media (prefers-color-scheme: light) {
+
+    .nav-links a:hover,
+    .nav-links a.active {
+        background-color: rgba(255, 255, 255, 0.2);
+    }
 }
 
 .sign-out-btn {
-    background-color: #e74c3c;
+    background-color: var(--danger-color);
     color: white;
     border: none;
     padding: 0.5rem 1rem;
     border-radius: 4px;
     cursor: pointer;
+    font-weight: 500;
+    transition: background-color 0.2s;
 }
 
 .sign-out-btn:hover {
-    background-color: #c0392b;
+    background-color: var(--danger-hover);
 }
 
 .page-container {
     padding: 2rem;
     max-width: 1200px;
     margin: 0 auto;
+    color: var(--text-primary);
 }
