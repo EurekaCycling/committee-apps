@@ -31,6 +31,12 @@ export class CommitteeAppsStack extends cdk.Stack {
       description: 'ARN of the ACM Certificate for Frontend',
     });
 
+    const signingSecretParam = new cdk.CfnParameter(this, 'DocumentsSigningSecret', {
+      type: 'String',
+      description: 'Secret for signing document URLs',
+      noEcho: true,
+    });
+
     // --- DynamoDB ---
     const table = new dynamodb.Table(this, 'CommitteeTable', {
       partitionKey: { name: 'PK', type: dynamodb.AttributeType.STRING },
@@ -87,6 +93,7 @@ export class CommitteeAppsStack extends cdk.Stack {
       environment: {
         TABLE_NAME: table.tableName,
         DOCUMENTS_BUCKET_NAME: documentsBucket.bucketName,
+        DOCUMENTS_SIGNING_SECRET: signingSecretParam.valueAsString,
       },
     });
 
