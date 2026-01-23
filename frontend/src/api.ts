@@ -23,8 +23,19 @@ export async function apiFetch(path: string, options: RequestInit = {}) {
         headers,
     });
 
-    if (response.status === 401) {
-        throw new Error('Unauthorized: Please login.');
+    // Centralised error handling
+    if (!response.ok) {
+        // Attempt to extract error details from the response body
+        let errorMsg = `${response.status} ${response.statusText}`;
+        try {
+            const errData = await response.json();
+            if (errData && errData.message) {
+                errorMsg = errData.message;
+            }
+        } catch (_) {
+            // ignore JSON parse errors
+        }
+        throw new Error(`API request failed: ${errorMsg}`);
     }
 
     return response;
@@ -39,10 +50,13 @@ export async function fetchLedger(type: TransactionType): Promise<MonthlyLedger[
     }
 
     const res = await apiFetch(`/ledger?type=${type}`);
-    if (!res.ok) {
-        throw new Error(`Failed to fetch ledger: ${res.statusText}`);
+    // apiFetch already throws on non‑OK responses, so we can directly parse JSON
+    const data = await res.json();
+    // Guard against unexpected null/undefined
+    if (!data) {
+        throw new Error('Ledger response was empty');
     }
-    return res.json();
+    return data as MonthlyLedger[];
 }
 
 export async function saveLedger(type: TransactionType, ledger: MonthlyLedger[]): Promise<void> {
@@ -55,10 +69,8 @@ export async function saveLedger(type: TransactionType, ledger: MonthlyLedger[])
         method: 'POST',
         body: JSON.stringify(ledger),
     });
-
-    if (!res.ok) {
-        throw new Error(`Failed to save ledger: ${res.statusText}`);
-    }
+    // apiFetch throws on error, so just ensure response is consumed
+    await res.text(); // consume body
 }
 
 export async function fetchCategories(): Promise<string[]> {
@@ -67,10 +79,11 @@ export async function fetchCategories(): Promise<string[]> {
     }
 
     const res = await apiFetch(`/ledger/categories`);
-    if (!res.ok) {
-        throw new Error(`Failed to fetch categories: ${res.statusText}`);
+    const data = await res.json();
+    if (!data) {
+        throw new Error('Categories response was empty');
     }
-    return res.json();
+    return data as string[];
 }
 
 export async function saveCategories(categories: string[]): Promise<void> {
@@ -83,8 +96,6 @@ export async function saveCategories(categories: string[]): Promise<void> {
         method: 'POST',
         body: JSON.stringify(categories),
     });
-
-    if (!res.ok) {
-        throw new Error(`Failed to save categories: ${res.statusText}`);
-    }
+    // apiFetch will throw on error; consume response
+    await res.text();
 }

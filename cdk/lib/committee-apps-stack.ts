@@ -95,7 +95,7 @@ export class CommitteeAppsStack extends cdk.Stack {
           user: 'root',
           command: [
             'bash', '-c',
-            'go mod tidy && GOOS=linux GOARCH=amd64 go build -o /asset-output/bootstrap ./cmd/api/main.go',
+            'GOOS=linux GOARCH=amd64 go build -o /asset-output/bootstrap ./cmd/api/main.go',
           ],
         },
       }),
