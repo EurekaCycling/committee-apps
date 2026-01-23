@@ -16,7 +16,10 @@ import (
 	"github.com/eureka-cycling/committee-apps/backend/internal/storage"
 )
 
-var storageProv storage.StorageProvider
+var (
+	storageProv storage.StorageProvider
+	dataProv    storage.StorageProvider
+)
 var signingSecret string
 
 type DocumentItem struct {
@@ -74,6 +77,21 @@ func init() {
 			panic(err)
 		}
 		storageProv = prov
+	}
+
+	dataBucketName := os.Getenv("DATA_BUCKET_NAME")
+	if dataBucketName != "" {
+		prov, err := storage.NewS3StorageProvider(context.Background(), dataBucketName)
+		if err != nil {
+			panic(err)
+		}
+		dataProv = prov
+	} else {
+		prov, err := storage.NewLocalStorageProvider("./data/non-document")
+		if err != nil {
+			panic(err)
+		}
+		dataProv = prov
 	}
 }
 

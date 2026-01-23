@@ -75,6 +75,15 @@ export class CommitteeAppsStack extends cdk.Stack {
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
     });
 
+    // --- Data Storage ---
+    const dataBucket = new s3.Bucket(this, 'DataBucket', {
+      versioned: true,
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
+      encryption: s3.BucketEncryption.S3_MANAGED,
+      enforceSSL: true,
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+    });
+
     // --- Backend (Lambda) ---
     // Bundling Go code from ../backend
     const helloFunction = new lambda.Function(this, 'HelloWorldFunction', {
@@ -93,13 +102,14 @@ export class CommitteeAppsStack extends cdk.Stack {
       environment: {
         TABLE_NAME: table.tableName,
         DOCUMENTS_BUCKET_NAME: documentsBucket.bucketName,
-        DOCUMENTS_SIGNING_SECRET: signingSecretParam.valueAsString,
+        DATA_BUCKET_NAME: dataBucket.bucketName,
       },
     });
 
     // Grant permissions
     table.grantReadWriteData(helloFunction);
     documentsBucket.grantReadWrite(helloFunction);
+    dataBucket.grantReadWrite(helloFunction);
 
     // --- API Gateway ---
     const certificate = acm.Certificate.fromCertificateArn(this, 'ApiCertificate', certificateArnParam.valueAsString);
