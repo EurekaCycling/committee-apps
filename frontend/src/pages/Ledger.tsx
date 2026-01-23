@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { fetchLedger } from '../api';
+import { fetchLedger, saveLedger } from '../api';
 import type { MonthlyLedger, TransactionType, Transaction } from '../mocks/ledgerData';
 import { CATEGORIES } from '../mocks/ledgerData';
 import { FaMoneyBillWave, FaUniversity, FaCreditCard, FaPlus, FaUnlock, FaLock } from 'react-icons/fa';
@@ -67,7 +67,7 @@ export function Ledger() {
         }));
     };
 
-    const handleAddTransaction = (monthStr: string) => {
+    const handleAddTransaction = async (monthStr: string) => {
         const draft = newTxDrafts[monthStr];
         if (!draft?.date || !draft?.category || draft?.amount === undefined) {
             alert('Please fill in all fields (description is optional)');
@@ -83,15 +83,25 @@ export function Ledger() {
             runningBalance: 0, // Will be recalculated
         };
 
-        setData(prevData => {
-            return prevData.map(m => {
-                if (m.month !== monthStr) return m;
-                return {
-                    ...m,
-                    transactions: [...m.transactions, newTx]
-                };
-            });
+        const updatedData = data.map(m => {
+            if (m.month !== monthStr) return m;
+            return {
+                ...m,
+                transactions: [...m.transactions, newTx]
+            };
         });
+
+        // Optimistically update local state
+        setData(updatedData);
+
+        // Save to backend
+        try {
+            await saveLedger(type, updatedData);
+        } catch (err) {
+            console.error(err);
+            alert('Failed to save ledger to server. Please try again.');
+            // Revert on failure might be complex, but at least user knows
+        }
 
         // Reset draft
         setNewTxDrafts(prev => ({

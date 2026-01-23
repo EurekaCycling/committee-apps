@@ -44,3 +44,19 @@ export async function fetchLedger(type: TransactionType): Promise<MonthlyLedger[
     }
     return res.json();
 }
+
+export async function saveLedger(type: TransactionType, ledger: MonthlyLedger[]): Promise<void> {
+    if (import.meta.env.VITE_NO_AUTH === 'true') {
+        console.log(`Mocking Ledger Save for ${type}`, ledger);
+        return;
+    }
+
+    const res = await apiFetch(`/ledger?type=${type}`, {
+        method: 'POST',
+        body: JSON.stringify(ledger),
+    });
+
+    if (!res.ok) {
+        throw new Error(`Failed to save ledger: ${res.statusText}`);
+    }
+}

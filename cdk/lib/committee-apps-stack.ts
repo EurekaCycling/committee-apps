@@ -178,6 +178,16 @@ export class CommitteeAppsStack extends cdk.Stack {
       authorizationType: apigateway.AuthorizationType.COGNITO,
     });
 
+    const ledgerResource = api.root.addResource('ledger');
+    ledgerResource.addMethod('GET', new apigateway.LambdaIntegration(helloFunction), {
+      authorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO,
+    });
+    ledgerResource.addMethod('POST', new apigateway.LambdaIntegration(helloFunction), {
+      authorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO,
+    });
+
     // --- Frontend (S3 + CloudFront) ---
     const frontendBucket = new s3.Bucket(this, 'FrontendBucket', {
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,

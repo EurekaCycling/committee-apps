@@ -221,6 +221,32 @@ func handleRequest(ctx context.Context, request events.APIGatewayProxyRequest) (
 		}
 		return events.APIGatewayProxyResponse{Body: `{"status":"ok"}`, StatusCode: 200, Headers: headers}, nil
 
+	case "/ledger":
+		ledgerType := request.QueryStringParameters["type"]
+		if ledgerType == "" {
+			return events.APIGatewayProxyResponse{Body: `{"error": "Type is required"}`, StatusCode: 400, Headers: headers}, nil
+		}
+		path := fmt.Sprintf("ledgers/%s.json", ledgerType)
+
+		if request.HTTPMethod == "GET" {
+			content, err := dataProv.Get(path)
+			if err != nil {
+				// Return empty array if file not found
+				if strings.Contains(err.Error(), "NoSuchKey") || strings.Contains(err.Error(), "no such file") {
+					return events.APIGatewayProxyResponse{Body: "[]", StatusCode: 200, Headers: headers}, nil
+				}
+				return errorResponse(err, headers), nil
+			}
+			return events.APIGatewayProxyResponse{Body: string(content), StatusCode: 200, Headers: headers}, nil
+		} else if request.HTTPMethod == "POST" {
+			err := dataProv.Save(path, []byte(request.Body))
+			if err != nil {
+				return errorResponse(err, headers), nil
+			}
+			return events.APIGatewayProxyResponse{Body: `{"status":"ok"}`, StatusCode: 200, Headers: headers}, nil
+		}
+		return events.APIGatewayProxyResponse{StatusCode: 405, Headers: headers}, nil
+
 	default:
 		return events.APIGatewayProxyResponse{
 			Body:       `{"error": "Not Found"}`,
