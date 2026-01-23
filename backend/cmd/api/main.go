@@ -226,22 +226,56 @@ func handleRequest(ctx context.Context, request events.APIGatewayProxyRequest) (
 		if ledgerType == "" {
 			return events.APIGatewayProxyResponse{Body: `{"error": "Type is required"}`, StatusCode: 400, Headers: headers}, nil
 		}
-		path := fmt.Sprintf("ledgers/%s.json", ledgerType)
+		dirPath := fmt.Sprintf("ledgers/%s", ledgerType)
 
 		if request.HTTPMethod == "GET" {
-			content, err := dataProv.Get(path)
+			items, err := dataProv.List(dirPath)
 			if err != nil {
-				// Return empty array if file not found
+				// If directory doesn't exist, return empty array
 				if strings.Contains(err.Error(), "NoSuchKey") || strings.Contains(err.Error(), "no such file") {
 					return events.APIGatewayProxyResponse{Body: "[]", StatusCode: 200, Headers: headers}, nil
 				}
 				return errorResponse(err, headers), nil
 			}
-			return events.APIGatewayProxyResponse{Body: string(content), StatusCode: 200, Headers: headers}, nil
+
+			var allLedgers []MonthlyLedger
+			for _, item := range items {
+				if strings.HasSuffix(item.Name, ".json") {
+					content, err := dataProv.Get(item.Path)
+					if err != nil {
+						continue // Skip failed reads
+					}
+					var ledger MonthlyLedger
+					if err := json.Unmarshal(content, &ledger); err == nil {
+						allLedgers = append(allLedgers, ledger)
+					}
+				}
+			}
+			// Sort by month
+			// Note: strings comparison works for YYYY-MM
+			for i := 0; i < len(allLedgers); i++ {
+				for j := i + 1; j < len(allLedgers); j++ {
+					if allLedgers[i].Month > allLedgers[j].Month {
+						allLedgers[i], allLedgers[j] = allLedgers[j], allLedgers[i]
+					}
+				}
+			}
+
+			body, _ := json.Marshal(allLedgers)
+			return events.APIGatewayProxyResponse{Body: string(body), StatusCode: 200, Headers: headers}, nil
+
 		} else if request.HTTPMethod == "POST" {
-			err := dataProv.Save(path, []byte(request.Body))
-			if err != nil {
-				return errorResponse(err, headers), nil
+			var ledgers []MonthlyLedger
+			if err := json.Unmarshal([]byte(request.Body), &ledgers); err != nil {
+				return events.APIGatewayProxyResponse{Body: `{"error": "Invalid format"}`, StatusCode: 400, Headers: headers}, nil
+			}
+
+			for _, ledger := range ledgers {
+				path := fmt.Sprintf("%s/%s.json", dirPath, ledger.Month)
+				content, _ := json.Marshal(ledger)
+				if err := dataProv.Save(path, content); err != nil {
+					return errorResponse(err, headers), nil
+				}
 			}
 			return events.APIGatewayProxyResponse{Body: `{"status":"ok"}`, StatusCode: 200, Headers: headers}, nil
 		}
@@ -278,9 +312,27 @@ func handleRequest(ctx context.Context, request events.APIGatewayProxyRequest) (
 	}
 }
 
+type Transaction struct {
+	ID             string  `json:"id"`
+	Date           string  `json:"date"`
+	Category       string  `json:"category"`
+	Description    string  `json:"description"`
+	Amount         float64 `json:"amount"`
+	RunningBalance float64 `json:"runningBalance"`
+}
+
+type MonthlyLedger struct {
+	PK             string        `json:"pk"`
+	Month          string        `json:"month"`
+	Type           string        `json:"type"`
+	OpeningBalance float64       `json:"openingBalance"`
+	ClosingBalance float64       `json:"closingBalance"`
+	Transactions   []Transaction `json:"transactions"`
+}
+
 func errorResponse(err error, headers map[string]string) events.APIGatewayProxyResponse {
 	return events.APIGatewayProxyResponse{
-		Body:       `{"error": "` + err.Error() + `"}`,
+		Body:       fmt.Sprintf(`{"error": "%s"}`, err.Error()),
 		StatusCode: 500,
 		Headers:    headers,
 	}
