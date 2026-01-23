@@ -247,6 +247,28 @@ func handleRequest(ctx context.Context, request events.APIGatewayProxyRequest) (
 		}
 		return events.APIGatewayProxyResponse{StatusCode: 405, Headers: headers}, nil
 
+	case "/ledger/categories":
+		path := "categories.json"
+		if request.HTTPMethod == "GET" {
+			content, err := dataProv.Get(path)
+			if err != nil {
+				if strings.Contains(err.Error(), "NoSuchKey") || strings.Contains(err.Error(), "no such file") {
+					// Return default categories if none exist
+					defaultCats := `["Membership", "Event Fee", "Equipment", "Reimbursement", "Sponsorship", "Misc"]`
+					return events.APIGatewayProxyResponse{Body: defaultCats, StatusCode: 200, Headers: headers}, nil
+				}
+				return errorResponse(err, headers), nil
+			}
+			return events.APIGatewayProxyResponse{Body: string(content), StatusCode: 200, Headers: headers}, nil
+		} else if request.HTTPMethod == "POST" {
+			err := dataProv.Save(path, []byte(request.Body))
+			if err != nil {
+				return errorResponse(err, headers), nil
+			}
+			return events.APIGatewayProxyResponse{Body: `{"status":"ok"}`, StatusCode: 200, Headers: headers}, nil
+		}
+		return events.APIGatewayProxyResponse{StatusCode: 405, Headers: headers}, nil
+
 	default:
 		return events.APIGatewayProxyResponse{
 			Body:       `{"error": "Not Found"}`,

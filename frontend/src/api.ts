@@ -1,5 +1,5 @@
 import { fetchAuthSession } from 'aws-amplify/auth';
-import { generateMockLedger } from './mocks/ledgerData';
+import { generateMockLedger, CATEGORIES } from './mocks/ledgerData';
 import type { MonthlyLedger, TransactionType } from './mocks/ledgerData';
 
 const BASE_URL = import.meta.env.PROD
@@ -58,5 +58,33 @@ export async function saveLedger(type: TransactionType, ledger: MonthlyLedger[])
 
     if (!res.ok) {
         throw new Error(`Failed to save ledger: ${res.statusText}`);
+    }
+}
+
+export async function fetchCategories(): Promise<string[]> {
+    if (import.meta.env.VITE_NO_AUTH === 'true') {
+        return CATEGORIES;
+    }
+
+    const res = await apiFetch(`/ledger/categories`);
+    if (!res.ok) {
+        throw new Error(`Failed to fetch categories: ${res.statusText}`);
+    }
+    return res.json();
+}
+
+export async function saveCategories(categories: string[]): Promise<void> {
+    if (import.meta.env.VITE_NO_AUTH === 'true') {
+        console.log('Mocking Categories Save', categories);
+        return;
+    }
+
+    const res = await apiFetch(`/ledger/categories`, {
+        method: 'POST',
+        body: JSON.stringify(categories),
+    });
+
+    if (!res.ok) {
+        throw new Error(`Failed to save categories: ${res.statusText}`);
     }
 }

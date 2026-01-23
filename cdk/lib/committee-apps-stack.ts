@@ -188,6 +188,16 @@ export class CommitteeAppsStack extends cdk.Stack {
       authorizationType: apigateway.AuthorizationType.COGNITO,
     });
 
+    const categoryResource = ledgerResource.addResource('categories');
+    categoryResource.addMethod('GET', new apigateway.LambdaIntegration(helloFunction), {
+      authorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO,
+    });
+    categoryResource.addMethod('POST', new apigateway.LambdaIntegration(helloFunction), {
+      authorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO,
+    });
+
     // --- Frontend (S3 + CloudFront) ---
     const frontendBucket = new s3.Bucket(this, 'FrontendBucket', {
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
@@ -226,6 +236,11 @@ export class CommitteeAppsStack extends cdk.Stack {
     new cdk.CfnOutput(this, 'FrontendBucketName', {
       value: frontendBucket.bucketName,
       description: 'S3 Bucket for Frontend Assets',
+    });
+
+    new cdk.CfnOutput(this, 'DataBucketName', {
+      value: dataBucket.bucketName,
+      description: 'S3 Bucket for Data Assets',
     });
 
     new cdk.CfnOutput(this, 'FrontendDistributionId', {

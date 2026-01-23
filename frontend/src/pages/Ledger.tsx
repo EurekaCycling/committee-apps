@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { fetchLedger, saveLedger } from '../api';
+import { fetchLedger, saveLedger, fetchCategories, saveCategories } from '../api';
 import type { MonthlyLedger, TransactionType, Transaction } from '../mocks/ledgerData';
 import { CATEGORIES } from '../mocks/ledgerData';
 import { FaMoneyBillWave, FaUniversity, FaCreditCard, FaPlus, FaUnlock, FaLock } from 'react-icons/fa';
@@ -23,6 +23,19 @@ export function Ledger() {
 
     // New transaction forms state: month -> transaction fields
     const [newTxDrafts, setNewTxDrafts] = useState<Record<string, Partial<Transaction>>>({});
+
+    // Load Categories
+    useEffect(() => {
+        async function loadCats() {
+            try {
+                const cats = await fetchCategories();
+                setCategories(cats);
+            } catch (err) {
+                console.error('Failed to load categories', err);
+            }
+        }
+        loadCats();
+    }, []);
 
     // Fetch data when Type toggles
     useEffect(() => {
@@ -110,12 +123,20 @@ export function Ledger() {
         }));
     };
 
-    const handleCategoryChange = (month: string, val: string) => {
+    const handleCategoryChange = async (month: string, val: string) => {
         if (val === 'ADD_NEW') {
             const newCat = prompt('Enter new category name:');
             if (newCat && !categories.includes(newCat)) {
-                setCategories(prev => [...prev, newCat]);
+                const updatedCategories = [...categories, newCat];
+                setCategories(updatedCategories);
                 handleDraftUpdate(month, 'category', newCat);
+
+                try {
+                    await saveCategories(updatedCategories);
+                } catch (err) {
+                    console.error('Failed to save categories', err);
+                    alert('Failed to save new category to server.');
+                }
             }
         } else {
             handleDraftUpdate(month, 'category', val);
