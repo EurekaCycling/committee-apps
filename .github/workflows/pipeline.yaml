@@ -108,17 +108,14 @@ jobs:
 
       - name: Build Frontend
         working-directory: frontend
-        env:
-          VITE_USER_POOL_ID: ${{ needs.deploy-infra.outputs.UserPoolId || '' }}
-          VITE_USER_POOL_CLIENT_ID: ${{ needs.deploy-infra.outputs.UserPoolClientId || '' }}
         run: |
           npm ci
           npm run build
 
       - name: Sync Frontend to S3
         run: |
-          aws s3 sync frontend/dist s3://${{ needs.deploy-infra.outputs.FrontendBucketName }} --delete
+          aws s3 sync frontend/dist s3://${{ vars.FRONTEND_BUCKET_NAME }} --delete
 
       - name: Invalidate CloudFront
         run: |
-          aws cloudfront create-invalidation --distribution-id ${{ needs.deploy-infra.outputs.FrontendDistributionId }} --paths "/*"
+          aws cloudfront create-invalidation --distribution-id ${{ vars.FRONTEND_DISTRIBUTION_ID }} --paths "/*"
