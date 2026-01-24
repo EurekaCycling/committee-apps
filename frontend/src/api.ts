@@ -1,10 +1,12 @@
 import { fetchAuthSession } from 'aws-amplify/auth';
+import { fetchAppConfig } from './config';
 import { generateMockLedger, CATEGORIES } from './mocks/ledgerData';
 import type { MonthlyLedger, TransactionType } from './mocks/ledgerData';
 
-const BASE_URL = import.meta.env.PROD
-    ? 'https://api.committee.eurekacycling.org.au'
-    : 'http://127.0.0.1:3000';
+async function resolveApiBaseUrl() {
+    const config = await fetchAppConfig();
+    return config.apiBaseUrl;
+}
 
 export async function apiFetch(path: string, options: RequestInit = {}) {
     const session = await fetchAuthSession();
@@ -18,7 +20,8 @@ export async function apiFetch(path: string, options: RequestInit = {}) {
         headers.set('Content-Type', 'application/json');
     }
 
-    const response = await fetch(`${BASE_URL}${path}`, {
+    const baseUrl = await resolveApiBaseUrl();
+    const response = await fetch(`${baseUrl}${path}`, {
         ...options,
         headers,
     });

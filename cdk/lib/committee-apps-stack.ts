@@ -7,6 +7,7 @@ import * as apigateway from 'aws-cdk-lib/aws-apigateway';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
 import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
+import * as s3deploy from 'aws-cdk-lib/aws-s3-deployment';
 import * as acm from 'aws-cdk-lib/aws-certificatemanager';
 import * as path from 'path';
 
@@ -207,14 +208,21 @@ export class CommitteeAppsStack extends cdk.Stack {
 
     const frontendCertificate = acm.Certificate.fromCertificateArn(this, 'FrontendCertificate', frontendCertificateArnParam.valueAsString);
 
+    const frontendOrigin = new origins.S3Origin(frontendBucket);
+
     const distribution = new cloudfront.Distribution(this, 'FrontendDistribution', {
       defaultBehavior: {
-        origin: new origins.S3Origin(frontendBucket), // Automatically sets up OAC in modern CDK ? No, usually need explicit OAC config or use `S3Origin` which sets up OAI/OAC.
-        // CDK S3Origin defaults to OAI (Origin Access Identity). 
-        // To use OAC (Control), we need strict config, but OAI is fine for now/legacy.
-        // Actually, modern CDK S3Origin might use OAI. Let's stick to defaults for simplicity unless verified.
+        origin: frontendOrigin,
         viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
         allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD_OPTIONS,
+      },
+      additionalBehaviors: {
+        'config.json': {
+          origin: frontendOrigin,
+          viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+          allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD_OPTIONS,
+          cachePolicy: cloudfront.CachePolicy.CACHING_DISABLED,
+        },
       },
       domainNames: ['committee2.eurekacycling.org.au'], // Hardcoded or Parameter? SAM has param but we fixed it in the template earlier. Using Hardcoded alias for now as per previous context or could check params.
       // Wait, SAM template used 'Aliases: - committee.eurekacycling.org.au'.
@@ -227,10 +235,38 @@ export class CommitteeAppsStack extends cdk.Stack {
       ],
     });
 
+    const frontendRuntimeConfig = {
+      apiBaseUrl: `https://${domainNameParam.valueAsString}`,
+      cognito: {
+        userPoolId: userPool.userPoolId,
+        userPoolClientId: userPoolClient.userPoolClientId,
+      },
+    };
+
+    const frontendRuntimeConfigJson = cdk.Fn.toJsonString(frontendRuntimeConfig);
+
+    new s3deploy.BucketDeployment(this, 'FrontendRuntimeConfigDeployment', {
+      destinationBucket: frontendBucket,
+      sources: [
+        s3deploy.Source.data('config.json', cdk.Fn.join('', [frontendRuntimeConfigJson, '\n'])),
+      ],
+      cacheControl: [
+        s3deploy.CacheControl.fromString('no-cache, no-store, must-revalidate'),
+        s3deploy.CacheControl.fromString('max-age=0'),
+      ],
+      distribution,
+      distributionPaths: ['/config.json'],
+    });
+
     // --- Outputs ---
     new cdk.CfnOutput(this, 'HelloWorldApi', {
       value: api.urlForPath('/hello'),
       description: 'API Gateway endpoint URL for Hello World function',
+    });
+
+    new cdk.CfnOutput(this, 'ApiBaseUrl', {
+      value: api.url,
+      description: 'API Gateway base URL',
     });
 
     new cdk.CfnOutput(this, 'FrontendBucketName', {

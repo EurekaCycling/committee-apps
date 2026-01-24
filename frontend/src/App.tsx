@@ -12,16 +12,7 @@ import { Reimbursements } from './pages/Reimbursements';
 import { Documents } from './pages/Documents';
 
 import { useAuth } from './auth-hook';
-
-// Configure Amplify
-Amplify.configure({
-  Auth: {
-    Cognito: {
-      userPoolId: import.meta.env.VITE_USER_POOL_ID || '',
-      userPoolClientId: import.meta.env.VITE_USER_POOL_CLIENT_ID || '',
-    }
-  }
-});
+import { fetchAppConfig, type AppConfig } from './config';
 import { ProtectedRoute } from './components/ProtectedRoute';
 
 import { usePageTitle } from './hooks/usePageTitle';
@@ -113,6 +104,54 @@ function MainLayout() {
 
 function App() {
   const useMockAuth = import.meta.env.VITE_NO_AUTH === 'true';
+  const [config, setConfig] = useState<AppConfig | null>(null);
+  const [configError, setConfigError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    fetchAppConfig()
+      .then((loadedConfig) => {
+        if (isMounted) {
+          setConfig(loadedConfig);
+        }
+      })
+      .catch((error) => {
+        if (isMounted) {
+          setConfigError(error?.message || 'Unable to load runtime configuration');
+        }
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!config) {
+      return;
+    }
+
+    Amplify.configure({
+      Auth: {
+        Cognito: config.cognito,
+      },
+    });
+  }, [config]);
+
+  if (configError) {
+    return (
+      <div className="page-container">
+        <div className="loading">Failed to load configuration: {configError}</div>
+      </div>
+    );
+  }
+
+  if (!config) {
+    return (
+      <div className="page-container">
+        <div className="loading">Loading configuration…</div>
+      </div>
+    );
+  }
 
   if (useMockAuth) {
     return <MainLayout />;

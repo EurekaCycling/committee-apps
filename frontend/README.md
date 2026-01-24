@@ -57,3 +57,17 @@ Manual build:
 ```bash
 npm run build
 ```
+
+## Runtime configuration
+
+The built site fetches `/config.json` (served from `public/config.json`) to determine runtime values for the API base URL and Cognito settings. Update those keys for each environment before deploying. Example structure:
+
+```json
+{
+  "apiBaseUrl": "https://api.committee.eurekacycling.org.au",
+  "cognito": {
+    "userPoolId": "your-user-pool-id",
+    "userPoolClientId": "your-client-id"
+  }
+}
+```
