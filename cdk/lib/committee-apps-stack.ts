@@ -1,6 +1,5 @@
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
-import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as cognito from 'aws-cdk-lib/aws-cognito';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as apigateway from 'aws-cdk-lib/aws-apigateway';
@@ -30,13 +29,6 @@ export class CommitteeAppsStack extends cdk.Stack {
     const frontendCertificateArnParam = new cdk.CfnParameter(this, 'FrontendCertificateArn', {
       type: 'String',
       description: 'ARN of the ACM Certificate for Frontend',
-    });
-
-    // --- DynamoDB ---
-    const table = new dynamodb.Table(this, 'CommitteeTable', {
-      partitionKey: { name: 'PK', type: dynamodb.AttributeType.STRING },
-      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-      removalPolicy: cdk.RemovalPolicy.DESTROY, // For consistent dev experience
     });
 
     // --- Cognito ---
@@ -95,14 +87,12 @@ export class CommitteeAppsStack extends cdk.Stack {
         },
       }),
       environment: {
-        TABLE_NAME: table.tableName,
         DOCUMENTS_BUCKET_NAME: documentsBucket.bucketName,
         DATA_BUCKET_NAME: dataBucket.bucketName,
       },
     });
 
     // Grant permissions
-    table.grantReadWriteData(helloFunction);
     documentsBucket.grantReadWrite(helloFunction);
     dataBucket.grantReadWrite(helloFunction);
 
