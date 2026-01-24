@@ -4,5 +4,6 @@
     "userPoolId": "YOUR_USER_POOL_ID",
     "userPoolClientId": "YOUR_USER_POOL_CLIENT_ID"
   },
-  "note": "Production config.json is build in CDK pipeline. This file is not deployed."
+  "note": "Production config.json is build in CDK pipeline. This file is not deployed.",
+  "version": "dev"
 }
