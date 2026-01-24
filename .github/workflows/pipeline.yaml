@@ -111,6 +111,7 @@ jobs:
         run: |
           npm ci
           npm run build
+          rm -rf frontend/dist/config.json
 
       - name: Sync Frontend to S3
         run: |
