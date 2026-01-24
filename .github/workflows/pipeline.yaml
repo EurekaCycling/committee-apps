@@ -111,7 +111,6 @@ jobs:
         run: |
           npm ci
           npm run build
-          rm -rf dist/config.json
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -121,7 +120,7 @@ jobs:
 
       - name: Sync Frontend to S3
         run: |
-          aws s3 sync frontend/dist s3://${{ vars.FRONTEND_BUCKET_NAME }} --delete
+          aws s3 sync frontend/dist s3://${{ vars.FRONTEND_BUCKET_NAME }} --delete --exclude 'config.json'
 
       - name: Invalidate CloudFront
         run: |
