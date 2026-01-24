@@ -31,6 +31,12 @@ export class CommitteeAppsStack extends cdk.Stack {
       description: 'ARN of the ACM Certificate for Frontend',
     });
 
+    const signingSecretParam = new cdk.CfnParameter(this, 'DocumentsSigningSecret', {
+      type: 'String',
+      description: 'Secret for signing document URLs',
+      noEcho: true,
+    });
+
     // --- Cognito ---
     const userPool = new cognito.UserPool(this, 'CommitteeUserPool', {
       userPoolName: `${this.stackName}-user-pool`,
@@ -89,6 +95,7 @@ export class CommitteeAppsStack extends cdk.Stack {
       environment: {
         DOCUMENTS_BUCKET_NAME: documentsBucket.bucketName,
         DATA_BUCKET_NAME: dataBucket.bucketName,
+        DOCUMENTS_SIGNING_SECRET: signingSecretParam.valueAsString,
       },
     });
 
