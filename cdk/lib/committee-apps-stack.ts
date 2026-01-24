@@ -37,6 +37,12 @@ export class CommitteeAppsStack extends cdk.Stack {
       noEcho: true,
     });
 
+    const buildNumberParam = new cdk.CfnParameter(this, 'BuildNumber', {
+      type: 'String',
+      default: 'dev',
+      description: 'Build number for frontend config version',
+    });
+
     // --- Cognito ---
     const userPool = new cognito.UserPool(this, 'CommitteeUserPool', {
       userPoolName: `${this.stackName}-user-pool`,
@@ -224,6 +230,7 @@ export class CommitteeAppsStack extends cdk.Stack {
         userPoolId: userPool.userPoolId,
         userPoolClientId: userPoolClient.userPoolClientId,
       },
+      version: buildNumberParam.valueAsString,
     };
 
     const frontendRuntimeConfigJson = cdk.Fn.toJsonString(frontendRuntimeConfig);

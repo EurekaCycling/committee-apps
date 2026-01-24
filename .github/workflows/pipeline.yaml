@@ -74,7 +74,8 @@ jobs:
             --parameters DomainName=api.committee.eurekacycling.org.au \
             --parameters CertificateArn=${{ secrets.ACM_CERTIFICATE_ARN }} \
             --parameters FrontendCertificateArn=${{ secrets.FRONTEND_CERTIFICATE_ARN }} \
-            --parameters DocumentsSigningSecret=${{ secrets.DOCUMENTS_SIGNING_SECRET }}
+            --parameters DocumentsSigningSecret=${{ secrets.DOCUMENTS_SIGNING_SECRET }} \
+            --parameters BuildNumber=${{ github.run_number }}
 
       - name: Get Stack Outputs
         id: get-outputs
