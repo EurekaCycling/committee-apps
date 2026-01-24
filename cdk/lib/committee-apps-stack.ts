@@ -32,12 +32,6 @@ export class CommitteeAppsStack extends cdk.Stack {
       description: 'ARN of the ACM Certificate for Frontend',
     });
 
-    const signingSecretParam = new cdk.CfnParameter(this, 'DocumentsSigningSecret', {
-      type: 'String',
-      description: 'Secret for signing document URLs',
-      noEcho: true,
-    });
-
     // --- DynamoDB ---
     const table = new dynamodb.Table(this, 'CommitteeTable', {
       partitionKey: { name: 'PK', type: dynamodb.AttributeType.STRING },
@@ -215,14 +209,6 @@ export class CommitteeAppsStack extends cdk.Stack {
         origin: frontendOrigin,
         viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
         allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD_OPTIONS,
-      },
-      additionalBehaviors: {
-        'config.json': {
-          origin: frontendOrigin,
-          viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
-          allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD_OPTIONS,
-          cachePolicy: cloudfront.CachePolicy.CACHING_DISABLED,
-        },
       },
       domainNames: ['committee2.eurekacycling.org.au'], // Hardcoded or Parameter? SAM has param but we fixed it in the template earlier. Using Hardcoded alias for now as per previous context or could check params.
       // Wait, SAM template used 'Aliases: - committee.eurekacycling.org.au'.
