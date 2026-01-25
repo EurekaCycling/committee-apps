@@ -27,6 +27,7 @@ func DefaultHeaders() map[string]string {
 }
 
 func errorResponse(err error, headers map[string]string) events.APIGatewayProxyResponse {
+	fmt.Printf("Error: %v\n", err)
 	return events.APIGatewayProxyResponse{
 		Body:       fmt.Sprintf(`{"error": "%s"}`, err.Error()),
 		StatusCode: 500,

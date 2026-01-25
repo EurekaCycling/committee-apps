@@ -48,10 +48,12 @@ func DocumentsRaw(_ context.Context, request events.APIGatewayProxyRequest, deps
 	fmt.Sscanf(expiresStr, "%d", &expires)
 
 	if !auth.VerifyToken(path, expires, token, deps.SigningSecret) {
+		fmt.Printf("Unauthorized document access: %s\n", path)
 		return events.APIGatewayProxyResponse{Body: `{"error": "Unauthorized"}`, StatusCode: 401, Headers: deps.Headers}, nil
 	}
 
 	if time.Now().Unix() > expires {
+		fmt.Printf("Expired document token: %s\n", path)
 		return events.APIGatewayProxyResponse{Body: `{"error": "Expired"}`, StatusCode: 401, Headers: deps.Headers}, nil
 	}
 
