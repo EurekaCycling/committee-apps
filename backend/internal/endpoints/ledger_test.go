@@ -89,8 +89,8 @@ func TestLedgerGetUsesPreviousClosingBalance(t *testing.T) {
 	}
 	deps := Dependencies{
 		Data: mockStorage{files: map[string][]byte{
-			"ledgers/BANK/2024-06.json": currentJSON,
-			"ledgers/BANK/2024-01.json": previousJSON,
+			"ledger/BANK/2024-06.json": currentJSON,
+			"ledger/BANK/2024-01.json": previousJSON,
 		}},
 		Headers: DefaultHeaders(),
 	}
