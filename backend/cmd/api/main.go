@@ -2,17 +2,11 @@ package main
 
 import (
 	"context"
-	"encoding/base64"
-	"encoding/json"
-	"fmt"
 	"os"
-	"time"
-
-	"strings"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
-	"github.com/eureka-cycling/committee-apps/backend/internal/auth"
+	"github.com/eureka-cycling/committee-apps/backend/internal/endpoints"
 	"github.com/eureka-cycling/committee-apps/backend/internal/storage"
 )
 
@@ -22,320 +16,61 @@ var (
 )
 var signingSecret string
 
-type DocumentItem struct {
-	storage.FileItem
-	Token   string `json:"token,omitempty"`
-	Expires int64  `json:"expires,omitempty"`
-}
-
-func getMimeType(path string) string {
-	ext := ""
-	lastDot := strings.LastIndex(path, ".")
-	if lastDot != -1 {
-		ext = strings.ToLower(path[lastDot+1:])
-	}
-
-	switch ext {
-	case "pdf":
-		return "application/pdf"
-	case "jpg", "jpeg":
-		return "image/jpeg"
-	case "png":
-		return "image/png"
-	case "gif":
-		return "image/gif"
-	case "webp":
-		return "image/webp"
-	case "svg":
-		return "image/svg+xml"
-	case "txt":
-		return "text/plain"
-	case "html":
-		return "text/html"
-	case "md":
-		return "text/markdown"
-	default:
-		return "application/octet-stream"
-	}
-}
-
 func init() {
 	signingSecret = os.Getenv("DOCUMENTS_SIGNING_SECRET")
 	if signingSecret == "" {
 		signingSecret = "default-development-secret"
 	}
 	bucketName := os.Getenv("DOCUMENTS_BUCKET_NAME")
-	if bucketName != "" {
-		prov, err := storage.NewS3StorageProvider(context.Background(), bucketName)
-		if err != nil {
-			panic(err)
-		}
-		storageProv = prov
-	} else {
-		prov, err := storage.NewLocalStorageProvider("./data/documents")
-		if err != nil {
-			panic(err)
-		}
-		storageProv = prov
+	prov, err := storage.NewS3StorageProvider(context.Background(), bucketName)
+	if err != nil {
+		panic(err)
 	}
+	storageProv = prov
 
 	dataBucketName := os.Getenv("DATA_BUCKET_NAME")
-	if dataBucketName != "" {
-		prov, err := storage.NewS3StorageProvider(context.Background(), dataBucketName)
-		if err != nil {
-			panic(err)
-		}
-		dataProv = prov
-	} else {
-		prov, err := storage.NewLocalStorageProvider("./data/non-document")
-		if err != nil {
-			panic(err)
-		}
-		dataProv = prov
+	dprov, err := storage.NewS3StorageProvider(context.Background(), dataBucketName)
+	if err != nil {
+		panic(err)
 	}
+	dataProv = dprov
+}
+
+type route struct {
+	handler endpoints.HandlerFunc
+}
+
+var routes = map[string]route{
+	"/hello":             {handler: endpoints.Hello},
+	"/documents/list":    {handler: endpoints.DocumentsList},
+	"/documents/raw":     {handler: endpoints.DocumentsRaw},
+	"/documents/view":    {handler: endpoints.DocumentsView},
+	"/documents/save":    {handler: endpoints.DocumentsSave},
+	"/documents/upload":  {handler: endpoints.DocumentsUpload},
+	"/documents/mkdir":   {handler: endpoints.DocumentsMkdir},
+	"/ledger":            {handler: endpoints.Ledger},
+	"/ledger/categories": {handler: endpoints.LedgerCategories},
 }
 
 func handleRequest(ctx context.Context, request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	headers := map[string]string{
-		"Access-Control-Allow-Origin":  "*",
-		"Access-Control-Allow-Headers": "Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token",
-		"Content-Type":                 "application/json",
+	headers := endpoints.DefaultHeaders()
+	deps := endpoints.Dependencies{
+		Storage:       storageProv,
+		Data:          dataProv,
+		SigningSecret: signingSecret,
+		Headers:       headers,
 	}
 
-	switch request.Resource {
-	case "/hello":
-		return events.APIGatewayProxyResponse{
-			Body:       `{"message": "Hello, Eureka Cycling Club!"}`,
-			StatusCode: 200,
-			Headers:    headers,
-		}, nil
-
-	case "/documents/list":
-		path := request.QueryStringParameters["path"]
-		items, err := storageProv.List(path)
-		if err != nil {
-			return errorResponse(err, headers), nil
-		}
-
-		enrichedItems := make([]DocumentItem, len(items))
-		expires := time.Now().Add(24 * time.Hour).Unix()
-		for i, item := range items {
-			enrichedItems[i] = DocumentItem{FileItem: item}
-			if !item.IsDir {
-				enrichedItems[i].Token = auth.GenerateToken(item.Path, expires, signingSecret)
-				enrichedItems[i].Expires = expires
-			}
-		}
-
-		body, _ := json.Marshal(enrichedItems)
-		return events.APIGatewayProxyResponse{Body: string(body), StatusCode: 200, Headers: headers}, nil
-
-	case "/documents/raw":
-		path := request.QueryStringParameters["path"]
-		token := request.QueryStringParameters["token"]
-		expiresStr := request.QueryStringParameters["expires"]
-
-		var expires int64
-		fmt.Sscanf(expiresStr, "%d", &expires)
-
-		if !auth.VerifyToken(path, expires, token, signingSecret) {
-			return events.APIGatewayProxyResponse{Body: `{"error": "Unauthorized"}`, StatusCode: 401, Headers: headers}, nil
-		}
-
-		if time.Now().Unix() > expires {
-			return events.APIGatewayProxyResponse{Body: `{"error": "Expired"}`, StatusCode: 401, Headers: headers}, nil
-		}
-
-		content, err := storageProv.Get(path)
-		if err != nil {
-			return errorResponse(err, headers), nil
-		}
-
-		return events.APIGatewayProxyResponse{
-			Body:            base64.StdEncoding.EncodeToString(content),
-			IsBase64Encoded: true,
-			StatusCode:      200,
-			Headers: map[string]string{
-				"Access-Control-Allow-Origin": "*",
-				"Content-Type":                getMimeType(path),
-			},
-		}, nil
-
-	case "/documents/view":
-		path := request.QueryStringParameters["path"]
-		content, err := storageProv.Get(path)
-		if err != nil {
-			return errorResponse(err, headers), nil
-		}
-		return events.APIGatewayProxyResponse{
-			Body:            base64.StdEncoding.EncodeToString(content),
-			IsBase64Encoded: true,
-			StatusCode:      200,
-			Headers: map[string]string{
-				"Access-Control-Allow-Origin": "*",
-				"Content-Type":                getMimeType(path),
-			},
-		}, nil
-
-	case "/documents/save":
-		if request.HTTPMethod != "POST" {
-			return events.APIGatewayProxyResponse{StatusCode: 405, Headers: headers}, nil
-		}
-		path := request.QueryStringParameters["path"]
-		err := storageProv.Save(path, []byte(request.Body))
-		if err != nil {
-			return errorResponse(err, headers), nil
-		}
-		return events.APIGatewayProxyResponse{Body: `{"status":"ok"}`, StatusCode: 200, Headers: headers}, nil
-
-	case "/documents/upload":
-		if request.HTTPMethod != "POST" {
-			return events.APIGatewayProxyResponse{StatusCode: 405, Headers: headers}, nil
-		}
-		path := request.QueryStringParameters["path"]
-		var body []byte
-		var err error
-		if request.IsBase64Encoded {
-			body, err = base64.StdEncoding.DecodeString(request.Body)
-			if err != nil {
-				return errorResponse(err, headers), nil
-			}
-		} else {
-			body = []byte(request.Body)
-		}
-
-		err = storageProv.Save(path, body)
-		if err != nil {
-			return errorResponse(err, headers), nil
-		}
-		return events.APIGatewayProxyResponse{Body: `{"status":"ok"}`, StatusCode: 200, Headers: headers}, nil
-
-	case "/documents/mkdir":
-		if request.HTTPMethod != "POST" {
-			return events.APIGatewayProxyResponse{StatusCode: 405, Headers: headers}, nil
-		}
-		path := request.QueryStringParameters["path"]
-		err := storageProv.Mkdir(path)
-		if err != nil {
-			return errorResponse(err, headers), nil
-		}
-		return events.APIGatewayProxyResponse{Body: `{"status":"ok"}`, StatusCode: 200, Headers: headers}, nil
-
-	case "/ledger":
-		ledgerType := request.QueryStringParameters["type"]
-		if ledgerType == "" {
-			return events.APIGatewayProxyResponse{Body: `{"error": "Type is required"}`, StatusCode: 400, Headers: headers}, nil
-		}
-		dirPath := fmt.Sprintf("ledgers/%s", ledgerType)
-
-		if request.HTTPMethod == "GET" {
-			items, err := dataProv.List(dirPath)
-			if err != nil {
-				// If directory doesn't exist, return empty array
-				if strings.Contains(err.Error(), "NoSuchKey") || strings.Contains(err.Error(), "no such file") {
-					return events.APIGatewayProxyResponse{Body: "[]", StatusCode: 200, Headers: headers}, nil
-				}
-				return errorResponse(err, headers), nil
-			}
-
-			var allLedgers []MonthlyLedger
-			for _, item := range items {
-				if strings.HasSuffix(item.Name, ".json") {
-					content, err := dataProv.Get(item.Path)
-					if err != nil {
-						continue // Skip failed reads
-					}
-					var ledger MonthlyLedger
-					if err := json.Unmarshal(content, &ledger); err == nil {
-						allLedgers = append(allLedgers, ledger)
-					}
-				}
-			}
-			// Sort by month
-			// Note: strings comparison works for YYYY-MM
-			for i := 0; i < len(allLedgers); i++ {
-				for j := i + 1; j < len(allLedgers); j++ {
-					if allLedgers[i].Month > allLedgers[j].Month {
-						allLedgers[i], allLedgers[j] = allLedgers[j], allLedgers[i]
-					}
-				}
-			}
-
-			body, _ := json.Marshal(allLedgers)
-			return events.APIGatewayProxyResponse{Body: string(body), StatusCode: 200, Headers: headers}, nil
-
-		} else if request.HTTPMethod == "POST" {
-			var ledgers []MonthlyLedger
-			if err := json.Unmarshal([]byte(request.Body), &ledgers); err != nil {
-				return events.APIGatewayProxyResponse{Body: `{"error": "Invalid format"}`, StatusCode: 400, Headers: headers}, nil
-			}
-
-			for _, ledger := range ledgers {
-				path := fmt.Sprintf("%s/%s.json", dirPath, ledger.Month)
-				content, _ := json.Marshal(ledger)
-				if err := dataProv.Save(path, content); err != nil {
-					return errorResponse(err, headers), nil
-				}
-			}
-			return events.APIGatewayProxyResponse{Body: `{"status":"ok"}`, StatusCode: 200, Headers: headers}, nil
-		}
-		return events.APIGatewayProxyResponse{StatusCode: 405, Headers: headers}, nil
-
-	case "/ledger/categories":
-		path := "categories.json"
-		if request.HTTPMethod == "GET" {
-			content, err := dataProv.Get(path)
-			if err != nil {
-				if strings.Contains(err.Error(), "NoSuchKey") || strings.Contains(err.Error(), "no such file") {
-					// Return default categories if none exist
-					defaultCats := `["Membership", "Event Fee", "Equipment", "Reimbursement", "Sponsorship", "Misc"]`
-					return events.APIGatewayProxyResponse{Body: defaultCats, StatusCode: 200, Headers: headers}, nil
-				}
-				return errorResponse(err, headers), nil
-			}
-			return events.APIGatewayProxyResponse{Body: string(content), StatusCode: 200, Headers: headers}, nil
-		} else if request.HTTPMethod == "POST" {
-			err := dataProv.Save(path, []byte(request.Body))
-			if err != nil {
-				return errorResponse(err, headers), nil
-			}
-			return events.APIGatewayProxyResponse{Body: `{"status":"ok"}`, StatusCode: 200, Headers: headers}, nil
-		}
-		return events.APIGatewayProxyResponse{StatusCode: 405, Headers: headers}, nil
-
-	default:
+	route, ok := routes[request.Resource]
+	if !ok {
 		return events.APIGatewayProxyResponse{
 			Body:       `{"error": "Not Found"}`,
 			StatusCode: 404,
 			Headers:    headers,
 		}, nil
 	}
-}
 
-type Transaction struct {
-	ID             string  `json:"id"`
-	Date           string  `json:"date"`
-	Category       string  `json:"category"`
-	Description    string  `json:"description"`
-	Amount         float64 `json:"amount"`
-	RunningBalance float64 `json:"runningBalance"`
-}
-
-type MonthlyLedger struct {
-	PK             string        `json:"pk"`
-	Month          string        `json:"month"`
-	Type           string        `json:"type"`
-	OpeningBalance float64       `json:"openingBalance"`
-	ClosingBalance float64       `json:"closingBalance"`
-	Transactions   []Transaction `json:"transactions"`
-}
-
-func errorResponse(err error, headers map[string]string) events.APIGatewayProxyResponse {
-	return events.APIGatewayProxyResponse{
-		Body:       fmt.Sprintf(`{"error": "%s"}`, err.Error()),
-		StatusCode: 500,
-		Headers:    headers,
-	}
+	return route.handler(ctx, request, deps)
 }
 
 func main() {
