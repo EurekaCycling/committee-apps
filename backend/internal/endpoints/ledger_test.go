@@ -2,6 +2,7 @@ package endpoints
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"reflect"
 	"testing"
@@ -84,6 +85,9 @@ func TestLedgerGet(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("LedgerGet() got = %v, want %v", got, tt.want)
+				// print json
+				js, _ := json.MarshalIndent(got, "", "  ")
+				t.Logf("%s", js)
 			}
 		})
 	}
