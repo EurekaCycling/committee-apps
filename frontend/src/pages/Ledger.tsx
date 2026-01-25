@@ -62,6 +62,7 @@ export function Ledger() {
                             return (await res.json()) as MonthlyLedger;
                         } catch (err) {
                             console.error(err);
+                            return null;
                         }
                     })
                 );
