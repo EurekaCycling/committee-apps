@@ -28,6 +28,8 @@ type MonthlyLedger struct {
 	Transactions   []Transaction `json:"transactions"`
 }
 
+const ledgerPrefix = "ledger/"
+
 func LedgerGet(_ context.Context, request events.APIGatewayProxyRequest, deps Dependencies) (events.APIGatewayProxyResponse, error) {
 	ledgerType := request.QueryStringParameters["type"]
 	if ledgerType == "" {
@@ -35,7 +37,7 @@ func LedgerGet(_ context.Context, request events.APIGatewayProxyRequest, deps De
 		return events.APIGatewayProxyResponse{Body: `{"error": "Type is required"}`, StatusCode: 400, Headers: deps.Headers}, nil
 	}
 	month := request.QueryStringParameters["month"]
-	dirPath := fmt.Sprintf("ledgers/%s", ledgerType)
+	dirPath := ledgerPrefix + ledgerType
 
 	if month != "" {
 		if _, err := time.Parse("2006-01", month); err != nil {
@@ -134,7 +136,7 @@ func LedgerPost(_ context.Context, request events.APIGatewayProxyRequest, deps D
 		fmt.Printf("Missing ledger type\n")
 		return events.APIGatewayProxyResponse{Body: `{"error": "Type is required"}`, StatusCode: 400, Headers: deps.Headers}, nil
 	}
-	dirPath := fmt.Sprintf("ledgers/%s", ledgerType)
+	dirPath := ledgerPrefix + ledgerType
 
 	var ledgers []MonthlyLedger
 	if err := json.Unmarshal([]byte(request.Body), &ledgers); err != nil {
