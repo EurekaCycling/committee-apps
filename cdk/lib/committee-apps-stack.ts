@@ -186,6 +186,12 @@ export class CommitteeAppsStack extends cdk.Stack {
       authorizationType: apigateway.AuthorizationType.COGNITO,
     });
 
+    const ledgerPdfResource = ledgerResource.addResource('pdf');
+    ledgerPdfResource.addMethod('GET', new apigateway.LambdaIntegration(helloFunction), {
+      authorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO,
+    });
+
     const categoryResource = ledgerResource.addResource('categories');
     categoryResource.addMethod('GET', new apigateway.LambdaIntegration(helloFunction), {
       authorizer,
