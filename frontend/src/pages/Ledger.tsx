@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
+import { fetchAuthSession } from 'aws-amplify/auth';
 import { apiFetch, saveLedger, fetchCategories, saveCategories } from '../api';
 import type { MonthlyLedger, TransactionType, Transaction } from '../mocks/ledgerData';
 import { CATEGORIES } from '../mocks/ledgerData';
@@ -168,7 +169,20 @@ export function Ledger() {
 
     const handleViewPdf = async (monthStr: string) => {
         try {
-            const res = await apiFetch(`/ledger/pdf?type=${type}&month=${monthStr}`);
+            const headers = new Headers({
+                Accept: 'application/pdf'
+            });
+            if (import.meta.env.VITE_NO_AUTH !== 'true') {
+                const session = await fetchAuthSession();
+                const token = session.tokens?.accessToken?.toString() || session.tokens?.idToken?.toString();
+                if (token) {
+                    headers.set('Authorization', `Bearer ${token}`);
+                }
+            }
+
+            const res = await apiFetch(`/ledger/pdf?type=${type}&month=${monthStr}`, {
+                headers
+            });
             const pdfBlob = await res.blob();
             const url = window.URL.createObjectURL(pdfBlob);
             window.open(url, '_blank', 'noopener');

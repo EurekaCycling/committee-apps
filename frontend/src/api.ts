@@ -13,7 +13,7 @@ export async function apiFetch(path: string, options: RequestInit = {}) {
     const token = session.tokens?.idToken?.toString();
 
     const headers = new Headers(options.headers);
-    if (token) {
+    if (token && !headers.has('Authorization')) {
         headers.set('Authorization', `Bearer ${token}`);
     }
     if (!headers.has('Content-Type')) {
