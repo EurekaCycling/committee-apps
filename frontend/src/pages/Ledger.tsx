@@ -24,13 +24,6 @@ const getMonthRange = (monthsBack: number) => {
     return months.reverse();
 };
 
-const isMissingLedger = (err: unknown) => {
-    if (!(err instanceof Error)) {
-        return false;
-    }
-    return err.message.includes('404');
-};
-
 export function Ledger() {
     usePageTitle('Ledger');
     const [type, setType] = useState<TransactionType>('BANK');
@@ -68,10 +61,7 @@ export function Ledger() {
                             const res = await apiFetch(`/ledger?type=${type}&month=${month}`);
                             return (await res.json()) as MonthlyLedger;
                         } catch (err) {
-                            if (isMissingLedger(err)) {
-                                return null;
-                            }
-                            throw err;
+                            console.error(err);
                         }
                     })
                 );
@@ -211,7 +201,7 @@ export function Ledger() {
         const today = new Date();
         const currentMonthStr = today.toISOString().slice(0, 7);
 
-        let processedMonths = [...data];
+        const processedMonths = [...data];
         if (!processedMonths.some(m => m.month === currentMonthStr)) {
             processedMonths.push({
                 pk: `TEMP#${type}#${currentMonthStr}`,
