@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { fetchLedger, saveLedger, fetchCategories, saveCategories } from '../api';
+import { apiFetch, saveLedger, fetchCategories, saveCategories } from '../api';
 import type { MonthlyLedger, TransactionType, Transaction } from '../mocks/ledgerData';
 import { CATEGORIES } from '../mocks/ledgerData';
 import { FaMoneyBillWave, FaUniversity, FaCreditCard, FaPlus, FaUnlock, FaLock } from 'react-icons/fa';
@@ -13,6 +13,24 @@ const ICONS = {
 
 import { usePageTitle } from '../hooks/usePageTitle';
 
+const getMonthRange = (monthsBack: number) => {
+    const months: string[] = [];
+    const start = new Date();
+    start.setDate(1);
+    for (let i = 0; i <= monthsBack; i++) {
+        const date = new Date(start.getFullYear(), start.getMonth() - i, 1);
+        months.push(date.toISOString().slice(0, 7));
+    }
+    return months.reverse();
+};
+
+const isMissingLedger = (err: unknown) => {
+    if (!(err instanceof Error)) {
+        return false;
+    }
+    return err.message.includes('404');
+};
+
 export function Ledger() {
     usePageTitle('Ledger');
     const [type, setType] = useState<TransactionType>('BANK');
@@ -23,6 +41,7 @@ export function Ledger() {
 
     // New transaction forms state: month -> transaction fields
     const [newTxDrafts, setNewTxDrafts] = useState<Record<string, Partial<Transaction>>>({});
+
 
     // Load Categories
     useEffect(() => {
@@ -41,13 +60,28 @@ export function Ledger() {
     useEffect(() => {
         async function load() {
             setLoading(true);
+            const monthsToFetch = getMonthRange(12);
             try {
-                const result = await fetchLedger(type);
-                setData(result);
+                const results = await Promise.all(
+                    monthsToFetch.map(async month => {
+                        try {
+                            const res = await apiFetch(`/ledger?type=${type}&month=${month}`);
+                            return (await res.json()) as MonthlyLedger;
+                        } catch (err) {
+                            if (isMissingLedger(err)) {
+                                return null;
+                            }
+                            throw err;
+                        }
+                    })
+                );
+                const ledgers = results.filter((ledger): ledger is MonthlyLedger => ledger !== null);
+                setData(ledgers);
                 // Open the last month by default
-                if (result.length > 0) {
-                    setOpenMonths(new Set([result[result.length - 1].month]));
-                }
+                const lastMonth = ledgers.length > 0
+                    ? ledgers[ledgers.length - 1].month
+                    : monthsToFetch[monthsToFetch.length - 1];
+                setOpenMonths(new Set([lastMonth]));
             } catch (err) {
                 console.error(err);
                 alert('Failed to load ledger');
