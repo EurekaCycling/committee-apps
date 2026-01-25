@@ -49,6 +49,7 @@ var routes = map[string]route{
 	"POST:/documents/upload":  {handler: endpoints.DocumentsUpload},
 	"POST:/documents/mkdir":   {handler: endpoints.DocumentsMkdir},
 	"GET:/ledger":             {handler: endpoints.LedgerGet},
+	"GET:/ledger/pdf":         {handler: endpoints.LedgerPdf},
 	"POST:/ledger":            {handler: endpoints.LedgerPost},
 	"GET:/ledger/categories":  {handler: endpoints.LedgerCategoriesGet},
 	"POST:/ledger/categories": {handler: endpoints.LedgerCategoriesPost},
