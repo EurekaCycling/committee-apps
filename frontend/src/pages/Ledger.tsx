@@ -27,7 +27,7 @@ const getMonthRange = (monthsBack: number) => {
 
 export function Ledger() {
     usePageTitle('Ledger');
-    const [type, setType] = useState<TransactionType>('BANK');
+    const [type, setType] = useState<TransactionType>('CASH');
     const [data, setData] = useState<MonthlyLedger[]>([]);
     const [loading, setLoading] = useState(false);
     const [openMonths, setOpenMonths] = useState<Set<string>>(new Set());
