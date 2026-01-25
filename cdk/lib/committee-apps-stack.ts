@@ -205,7 +205,7 @@ export class CommitteeAppsStack extends cdk.Stack {
 
     const frontendCertificate = acm.Certificate.fromCertificateArn(this, 'FrontendCertificate', frontendCertificateArnParam.valueAsString);
 
-    const frontendOrigin = new origins.S3Origin(frontendBucket);
+    const frontendOrigin = origins.S3BucketOrigin.withOriginAccessControl(frontendBucket);
 
     const distribution = new cloudfront.Distribution(this, 'FrontendDistribution', {
       defaultBehavior: {
