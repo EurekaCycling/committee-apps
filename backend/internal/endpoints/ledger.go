@@ -58,6 +58,8 @@ func LedgerGet(_ context.Context, request events.APIGatewayProxyRequest, deps De
 				ledger.OpeningBalance = openingBalance
 				ledger.ClosingBalance = openingBalance
 			}
+			body, _ := json.Marshal(ledger)
+			return events.APIGatewayProxyResponse{Body: string(body), StatusCode: 200, Headers: deps.Headers}, nil
 		}
 		if err := json.Unmarshal(content, &ledger); err != nil {
 			fmt.Printf("Invalid ledger format: %s - Error: %v\n", path, err)
