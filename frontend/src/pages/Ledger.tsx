@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { apiFetch, saveLedger, fetchCategories, saveCategories } from '../api';
 import type { MonthlyLedger, TransactionType, Transaction } from '../mocks/ledgerData';
 import { CATEGORIES } from '../mocks/ledgerData';
@@ -31,10 +31,28 @@ export function Ledger() {
     const [loading, setLoading] = useState(false);
     const [openMonths, setOpenMonths] = useState<Set<string>>(new Set());
     const [categories, setCategories] = useState<string[]>(CATEGORIES);
+    const [alert, setAlert] = useState<{ message: string; tone: 'error' | 'info' | 'success' } | null>(null);
+    const alertTimerRef = useRef<number | null>(null);
 
     // New transaction forms state: month -> transaction fields
     const [newTxDrafts, setNewTxDrafts] = useState<Record<string, Partial<Transaction>>>({});
 
+    const showAlert = (message: string, tone: 'error' | 'info' | 'success' = 'error') => {
+        setAlert({ message, tone });
+        if (alertTimerRef.current) {
+            window.clearTimeout(alertTimerRef.current);
+        }
+        alertTimerRef.current = window.setTimeout(() => {
+            setAlert(null);
+            alertTimerRef.current = null;
+        }, 4000);
+    };
+
+    useEffect(() => () => {
+        if (alertTimerRef.current) {
+            window.clearTimeout(alertTimerRef.current);
+        }
+    }, []);
 
     // Load Categories
     useEffect(() => {
@@ -75,7 +93,7 @@ export function Ledger() {
                 setOpenMonths(new Set([lastMonth]));
             } catch (err) {
                 console.error(err);
-                alert('Failed to load ledger');
+                showAlert('Failed to load ledger. Please refresh and try again.');
             } finally {
                 setLoading(false);
             }
@@ -108,7 +126,7 @@ export function Ledger() {
     const handleAddTransaction = async (monthStr: string) => {
         const draft = newTxDrafts[monthStr];
         if (!draft?.date || !draft?.category || draft?.amount === undefined) {
-            alert('Please fill in all fields (description is optional)');
+            showAlert('Please fill in all fields (description is optional).', 'info');
             return;
         }
 
@@ -137,7 +155,7 @@ export function Ledger() {
             await saveLedger(type, updatedData);
         } catch (err) {
             console.error(err);
-            alert('Failed to save ledger to server. Please try again.');
+            showAlert('Failed to save ledger to server. Please try again.');
             // Revert on failure might be complex, but at least user knows
         }
 
@@ -157,7 +175,7 @@ export function Ledger() {
             window.setTimeout(() => URL.revokeObjectURL(url), 10000);
         } catch (err) {
             console.error(err);
-            alert('Failed to load PDF');
+            showAlert('Failed to load PDF. Please try again.');
         }
     };
 
@@ -173,7 +191,7 @@ export function Ledger() {
                     await saveCategories(updatedCategories);
                 } catch (err) {
                     console.error('Failed to save categories', err);
-                    alert('Failed to save new category to server.');
+                    showAlert('Failed to save new category to server.');
                 }
             }
         } else {
@@ -266,6 +284,20 @@ export function Ledger() {
                     ))}
                 </div>
             </div>
+
+            {alert && (
+                <div className={`ledger-alert ${alert.tone}`} role="status">
+                    <span>{alert.message}</span>
+                    <button
+                        type="button"
+                        className="ledger-alert-close"
+                        aria-label="Dismiss alert"
+                        onClick={() => setAlert(null)}
+                    >
+                        ×
+                    </button>
+                </div>
+            )}
 
             {loading ? (
                 <div className="loading">Loading...</div>
