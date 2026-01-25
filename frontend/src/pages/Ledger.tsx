@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { apiFetch, saveLedger, fetchCategories, saveCategories } from '../api';
 import type { MonthlyLedger, TransactionType, Transaction } from '../mocks/ledgerData';
 import { CATEGORIES } from '../mocks/ledgerData';
-import { FaMoneyBillWave, FaUniversity, FaCreditCard, FaPlus, FaUnlock, FaLock } from 'react-icons/fa';
+import { FaMoneyBillWave, FaUniversity, FaCreditCard, FaPlus, FaUnlock, FaLock, FaPrint } from 'react-icons/fa';
 import './Ledger.css';
 
 const ICONS = {
@@ -157,6 +157,19 @@ export function Ledger() {
         }));
     };
 
+    const handleViewPdf = async (monthStr: string) => {
+        try {
+            const res = await apiFetch(`/ledger/pdf?type=${type}&month=${monthStr}`);
+            const pdfBlob = await res.blob();
+            const url = window.URL.createObjectURL(pdfBlob);
+            window.open(url, '_blank', 'noopener');
+            window.setTimeout(() => URL.revokeObjectURL(url), 10000);
+        } catch (err) {
+            console.error(err);
+            alert('Failed to load PDF');
+        }
+    };
+
     const handleCategoryChange = async (month: string, val: string) => {
         if (val === 'ADD_NEW') {
             const newCat = prompt('Enter new category name:');
@@ -278,9 +291,23 @@ export function Ledger() {
                                         <span className="lock-icon">{isOpen ? <FaUnlock /> : <FaLock />}</span>
                                         <h3>{month.month}</h3>
                                     </div>
-                                    <div className="month-summary">
-                                        <span>Opening: ${month.openingBalance.toFixed(2)}</span>
-                                        <span>Closing: ${month.closingBalance.toFixed(2)}</span>
+                                    <div className="month-actions">
+                                        <div className="month-summary">
+                                            <span>Opening: ${month.openingBalance.toFixed(2)}</span>
+                                            <span>Closing: ${month.closingBalance.toFixed(2)}</span>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            className="month-pdf"
+                                            title="View PDF"
+                                            aria-label={`View PDF for ${month.month}`}
+                                            onClick={(event) => {
+                                                event.stopPropagation();
+                                                handleViewPdf(month.month);
+                                            }}
+                                        >
+                                            <FaPrint />
+                                        </button>
                                     </div>
                                 </div>
                                 <div className="transactions-list">

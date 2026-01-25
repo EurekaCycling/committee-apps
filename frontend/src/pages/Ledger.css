@@ -132,6 +132,32 @@
     gap: 1rem;
 }
 
+.month-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.month-pdf {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border-color);
+    background: var(--bg-primary);
+    color: var(--text-secondary);
+    width: 32px;
+    height: 32px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.month-pdf:hover {
+    color: var(--text-primary);
+    border-color: var(--accent-color);
+    background: var(--bg-tertiary);
+}
+
 .transactions-table {
     width: 100%;
     border-collapse: collapse;
