@@ -1,8 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { usePageTitle } from '../hooks/usePageTitle';
+import { fetchFinancialReport, type FinancialReportResponse } from '../api';
 import './FinancialReports.css';
-
-type PeriodKey = 'ytd' | 'fy2025' | 'fy2024';
 
 type LineItem = {
     label: string;
@@ -29,11 +28,7 @@ type ReportData = {
     }[];
 };
 
-const periodOptions: { key: PeriodKey; label: string }[] = [
-    { key: 'ytd', label: 'Current YTD' },
-    { key: 'fy2025', label: 'FY 2025' },
-    { key: 'fy2024', label: 'FY 2024' },
-];
+type PeriodKey = 'ytd' | 'fy-1' | 'fy-2';
 
 const reportData: Record<PeriodKey, ReportData> = {
     ytd: {
@@ -106,7 +101,7 @@ const reportData: Record<PeriodKey, ReportData> = {
             },
         ],
     },
-    fy2025: {
+    'fy-1': {
         label: 'FY 2025',
         range: '1 Jul 2024 - 30 Jun 2025',
         asAt: 'As at 30 Jun 2025',
@@ -175,7 +170,7 @@ const reportData: Record<PeriodKey, ReportData> = {
             },
         ],
     },
-    fy2024: {
+    'fy-2': {
         label: 'FY 2024',
         range: '1 Jul 2023 - 30 Jun 2024',
         asAt: 'As at 30 Jun 2024',
@@ -246,14 +241,73 @@ const reportData: Record<PeriodKey, ReportData> = {
     },
 };
 
+const buildPeriodOptions = (): { key: PeriodKey; label: string }[] => {
+    const today = new Date();
+    const currentFyEnd = today.getMonth() >= 6 ? today.getFullYear() + 1 : today.getFullYear();
+    return [
+        { key: 'ytd', label: 'Current YTD' },
+        { key: 'fy-1', label: `FY ${currentFyEnd - 1}` },
+        { key: 'fy-2', label: `FY ${currentFyEnd - 2}` },
+    ];
+};
+
+const mapApiReport = (report: FinancialReportResponse): ReportData => ({
+    label: report.label,
+    range: report.range,
+    asAt: report.asAt,
+    statement: {
+        income: report.statement.income,
+        expenditure: report.statement.expenditure,
+    },
+    balanceSheet: {
+        assets: report.balanceSheet.assets,
+        liabilities: report.balanceSheet.liabilities,
+        equityLabel: report.balanceSheet.equityLabel,
+    },
+    notes: report.notes,
+});
+
 export function FinancialReports() {
     usePageTitle('Financial Reports');
     const [period, setPeriod] = useState<PeriodKey>('ytd');
+    const [activeReport, setActiveReport] = useState<ReportData>(reportData.ytd);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const periodOptions = useMemo(() => buildPeriodOptions(), []);
     const formatter = useMemo(
         () => new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD', maximumFractionDigits: 0 }),
         []
     );
-    const activeReport = reportData[period];
+    const isMock = import.meta.env.VITE_NO_AUTH === 'true';
+
+    useEffect(() => {
+        if (isMock) {
+            setActiveReport(reportData[period]);
+            return;
+        }
+        let isMounted = true;
+        setLoading(true);
+        setError(null);
+        fetchFinancialReport(period)
+            .then((report) => {
+                if (isMounted) {
+                    setActiveReport(mapApiReport(report));
+                }
+            })
+            .catch((err: Error) => {
+                if (isMounted) {
+                    setError(err.message || 'Unable to load report data');
+                }
+            })
+            .finally(() => {
+                if (isMounted) {
+                    setLoading(false);
+                }
+            });
+        return () => {
+            isMounted = false;
+        };
+    }, [period, isMock]);
 
     const totalIncome = activeReport.statement.income.reduce((sum, item) => sum + item.amount, 0);
     const totalExpenditure = activeReport.statement.expenditure.reduce((sum, item) => sum + item.amount, 0);
@@ -314,6 +368,8 @@ export function FinancialReports() {
                         <span>{activeReport.range}</span>
                         <span>{activeReport.asAt}</span>
                     </div>
+                    {loading && <div className="reports-loading">Loading report data…</div>}
+                    {error && <div className="reports-error">{error}</div>}
                 </section>
 
                 <section className="reports-grid">

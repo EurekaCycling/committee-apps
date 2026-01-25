@@ -202,6 +202,13 @@ export class CommitteeAppsStack extends cdk.Stack {
       authorizationType: apigateway.AuthorizationType.COGNITO,
     });
 
+    const reportsResource = api.root.addResource('reports');
+    const financialReportsResource = reportsResource.addResource('financial');
+    financialReportsResource.addMethod('GET', new apigateway.LambdaIntegration(helloFunction), {
+      authorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO,
+    });
+
     // --- Frontend (S3 + CloudFront) ---
     const frontendBucket = new s3.Bucket(this, 'FrontendBucket', {
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,

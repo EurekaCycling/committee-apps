@@ -164,6 +164,17 @@
     color: #39544f;
 }
 
+.reports-loading {
+    font-size: 0.9rem;
+    color: #5b6f68;
+}
+
+.reports-error {
+    font-size: 0.9rem;
+    color: #9b3a2f;
+    font-weight: 600;
+}
+
 .reports-grid {
     position: relative;
     z-index: 1;

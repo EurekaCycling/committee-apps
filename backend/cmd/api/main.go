@@ -53,6 +53,7 @@ var routes = map[string]route{
 	"POST:/ledger":            {handler: endpoints.LedgerPost},
 	"GET:/ledger/categories":  {handler: endpoints.LedgerCategoriesGet},
 	"POST:/ledger/categories": {handler: endpoints.LedgerCategoriesPost},
+	"GET:/reports/financial":  {handler: endpoints.FinancialReportGet},
 }
 
 func handleRequest(ctx context.Context, request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {

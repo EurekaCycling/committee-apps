@@ -102,3 +102,45 @@ export async function saveCategories(categories: string[]): Promise<void> {
     // apiFetch will throw on error; consume response
     await res.text();
 }
+
+export type FinancialReportLineItem = {
+    label: string;
+    amount: number;
+};
+
+export type FinancialReportNote = {
+    title: string;
+    details: string[];
+};
+
+export type FinancialReportResponse = {
+    period: string;
+    label: string;
+    range: string;
+    asAt: string;
+    statement: {
+        income: FinancialReportLineItem[];
+        expenditure: FinancialReportLineItem[];
+        totalIncome: number;
+        totalExpenditure: number;
+        netResult: number;
+    };
+    balanceSheet: {
+        assets: FinancialReportLineItem[];
+        liabilities: FinancialReportLineItem[];
+        totalAssets: number;
+        totalLiabilities: number;
+        equity: number;
+        equityLabel: string;
+    };
+    notes: FinancialReportNote[];
+};
+
+export async function fetchFinancialReport(period: string): Promise<FinancialReportResponse> {
+    const res = await apiFetch(`/reports/financial?period=${period}`);
+    const data = await res.json();
+    if (!data) {
+        throw new Error('Financial report response was empty');
+    }
+    return data as FinancialReportResponse;
+}
