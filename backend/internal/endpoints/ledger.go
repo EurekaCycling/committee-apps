@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-lambda-go/events"
 )
@@ -32,7 +33,34 @@ func LedgerGet(_ context.Context, request events.APIGatewayProxyRequest, deps De
 	if ledgerType == "" {
 		return events.APIGatewayProxyResponse{Body: `{"error": "Type is required"}`, StatusCode: 400, Headers: deps.Headers}, nil
 	}
+	month := request.QueryStringParameters["month"]
 	dirPath := fmt.Sprintf("ledgers/%s", ledgerType)
+
+	if month != "" {
+		if _, err := time.Parse("2006-01", month); err != nil {
+			return events.APIGatewayProxyResponse{Body: `{"error": "Month must be YYYY-MM"}`, StatusCode: 400, Headers: deps.Headers}, nil
+		}
+		path := fmt.Sprintf("%s/%s.json", dirPath, month)
+		content, err := deps.Data.Get(path)
+		if err != nil {
+			if strings.Contains(err.Error(), "NoSuchKey") || strings.Contains(err.Error(), "no such file") {
+				return events.APIGatewayProxyResponse{Body: `{"error": "Ledger not found"}`, StatusCode: 404, Headers: deps.Headers}, nil
+			}
+			return errorResponse(err, deps.Headers), nil
+		}
+		var ledger MonthlyLedger
+		if err := json.Unmarshal(content, &ledger); err != nil {
+			return events.APIGatewayProxyResponse{Body: `{"error": "Invalid ledger format"}`, StatusCode: 400, Headers: deps.Headers}, nil
+		}
+
+		openingBalance, foundPrev := findPreviousClosingBalance(dirPath, month, deps)
+		if foundPrev {
+			ledger.OpeningBalance = openingBalance
+		}
+
+		body, _ := json.Marshal(ledger)
+		return events.APIGatewayProxyResponse{Body: string(body), StatusCode: 200, Headers: deps.Headers}, nil
+	}
 
 	items, err := deps.Data.List(dirPath)
 	if err != nil {
@@ -66,6 +94,31 @@ func LedgerGet(_ context.Context, request events.APIGatewayProxyRequest, deps De
 
 	body, _ := json.Marshal(allLedgers)
 	return events.APIGatewayProxyResponse{Body: string(body), StatusCode: 200, Headers: deps.Headers}, nil
+}
+
+func findPreviousClosingBalance(dirPath, month string, deps Dependencies) (float64, bool) {
+	parsedMonth, err := time.Parse("2006-01", month)
+	if err != nil {
+		return 0, false
+	}
+	for i := 0; i < 6; i++ {
+		parsedMonth = parsedMonth.AddDate(0, -1, 0)
+		prevMonth := parsedMonth.Format("2006-01")
+		path := fmt.Sprintf("%s/%s.json", dirPath, prevMonth)
+		content, err := deps.Data.Get(path)
+		if err != nil {
+			if strings.Contains(err.Error(), "NoSuchKey") || strings.Contains(err.Error(), "no such file") {
+				continue
+			}
+			return 0, false
+		}
+		var prevLedger MonthlyLedger
+		if err := json.Unmarshal(content, &prevLedger); err != nil {
+			return 0, false
+		}
+		return prevLedger.ClosingBalance, true
+	}
+	return 0, false
 }
 
 func LedgerPost(_ context.Context, request events.APIGatewayProxyRequest, deps Dependencies) (events.APIGatewayProxyResponse, error) {
