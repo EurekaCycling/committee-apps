@@ -240,12 +240,14 @@ export class CommitteeAppsStack extends cdk.Stack {
       sources: [
         s3deploy.Source.data('config.json', cdk.Fn.join('', [frontendRuntimeConfigJson, '\n'])),
       ],
+      prune: false,
       cacheControl: [
         s3deploy.CacheControl.fromString('no-cache, no-store, must-revalidate'),
         s3deploy.CacheControl.fromString('max-age=0'),
       ],
       distribution,
       distributionPaths: ['/config.json'],
+
     });
 
     // --- Outputs ---
