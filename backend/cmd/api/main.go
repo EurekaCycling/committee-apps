@@ -41,15 +41,17 @@ type route struct {
 }
 
 var routes = map[string]route{
-	"/hello":             {handler: endpoints.Hello},
-	"/documents/list":    {handler: endpoints.DocumentsList},
-	"/documents/raw":     {handler: endpoints.DocumentsRaw},
-	"/documents/view":    {handler: endpoints.DocumentsView},
-	"/documents/save":    {handler: endpoints.DocumentsSave},
-	"/documents/upload":  {handler: endpoints.DocumentsUpload},
-	"/documents/mkdir":   {handler: endpoints.DocumentsMkdir},
-	"/ledger":            {handler: endpoints.Ledger},
-	"/ledger/categories": {handler: endpoints.LedgerCategories},
+	"GET:/hello":              {handler: endpoints.Hello},
+	"GET:/documents/list":     {handler: endpoints.DocumentsList},
+	"GET:/documents/raw":      {handler: endpoints.DocumentsRaw},
+	"GET:/documents/view":     {handler: endpoints.DocumentsView},
+	"POST:/documents/save":    {handler: endpoints.DocumentsSave},
+	"POST:/documents/upload":  {handler: endpoints.DocumentsUpload},
+	"POST:/documents/mkdir":   {handler: endpoints.DocumentsMkdir},
+	"GET:/ledger":             {handler: endpoints.LedgerGet},
+	"POST:/ledger":            {handler: endpoints.LedgerPost},
+	"GET:/ledger/categories":  {handler: endpoints.LedgerCategoriesGet},
+	"POST:/ledger/categories": {handler: endpoints.LedgerCategoriesPost},
 }
 
 func handleRequest(ctx context.Context, request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
@@ -61,7 +63,8 @@ func handleRequest(ctx context.Context, request events.APIGatewayProxyRequest) (
 		Headers:       headers,
 	}
 
-	route, ok := routes[request.Resource]
+	key := request.HTTPMethod + ":" + request.Resource
+	route, ok := routes[key]
 	if !ok {
 		return events.APIGatewayProxyResponse{
 			Body:       `{"error": "Not Found"}`,

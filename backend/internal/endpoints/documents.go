@@ -89,9 +89,6 @@ func DocumentsView(_ context.Context, request events.APIGatewayProxyRequest, dep
 }
 
 func DocumentsSave(_ context.Context, request events.APIGatewayProxyRequest, deps Dependencies) (events.APIGatewayProxyResponse, error) {
-	if request.HTTPMethod != "POST" {
-		return events.APIGatewayProxyResponse{StatusCode: 405, Headers: deps.Headers}, nil
-	}
 	path := request.QueryStringParameters["path"]
 	err := deps.Storage.Save(path, []byte(request.Body))
 	if err != nil {
@@ -101,9 +98,6 @@ func DocumentsSave(_ context.Context, request events.APIGatewayProxyRequest, dep
 }
 
 func DocumentsUpload(_ context.Context, request events.APIGatewayProxyRequest, deps Dependencies) (events.APIGatewayProxyResponse, error) {
-	if request.HTTPMethod != "POST" {
-		return events.APIGatewayProxyResponse{StatusCode: 405, Headers: deps.Headers}, nil
-	}
 	path := request.QueryStringParameters["path"]
 	var body []byte
 	var err error
@@ -124,9 +118,6 @@ func DocumentsUpload(_ context.Context, request events.APIGatewayProxyRequest, d
 }
 
 func DocumentsMkdir(_ context.Context, request events.APIGatewayProxyRequest, deps Dependencies) (events.APIGatewayProxyResponse, error) {
-	if request.HTTPMethod != "POST" {
-		return events.APIGatewayProxyResponse{StatusCode: 405, Headers: deps.Headers}, nil
-	}
 	path := request.QueryStringParameters["path"]
 	err := deps.Storage.Mkdir(path)
 	if err != nil {
