@@ -33,11 +33,39 @@ func TestLedgerGet(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "Get",
+			name: "Get 2024-12",
 			args: args{
 				in0: context.Background(),
 				request: events.APIGatewayProxyRequest{
 					QueryStringParameters: map[string]string{"month": "2024-12", "type": "CASH"},
+				},
+				deps: Dependencies{
+					Data: prov,
+				},
+			},
+			wantErr: false,
+			want:    events.APIGatewayProxyResponse{},
+		},
+		{
+			name: "Get 2025-11",
+			args: args{
+				in0: context.Background(),
+				request: events.APIGatewayProxyRequest{
+					QueryStringParameters: map[string]string{"month": "2025-11", "type": "CASH"},
+				},
+				deps: Dependencies{
+					Data: prov,
+				},
+			},
+			wantErr: false,
+			want:    events.APIGatewayProxyResponse{},
+		},
+		{
+			name: "Get 2025-12",
+			args: args{
+				in0: context.Background(),
+				request: events.APIGatewayProxyRequest{
+					QueryStringParameters: map[string]string{"month": "2025-12", "type": "CASH"},
 				},
 				deps: Dependencies{
 					Data: prov,

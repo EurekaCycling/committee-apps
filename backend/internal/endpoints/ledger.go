@@ -42,69 +42,38 @@ func LedgerGet(_ context.Context, request events.APIGatewayProxyRequest, deps De
 		return events.APIGatewayProxyResponse{Body: `{"error": "Type is required"}`, StatusCode: 400, Headers: deps.Headers}, nil
 	}
 	month := request.QueryStringParameters["month"]
+	if month == "" {
+		// No month specified error
+		fmt.Printf("Missing ledger month\n")
+		return events.APIGatewayProxyResponse{Body: `{"error": "Month is required"}`, StatusCode: 400, Headers: deps.Headers}, nil
+	}
+
+	if _, err := time.Parse("2006-01", month); err != nil {
+		fmt.Printf("Invalid month: %s - Error: %v\n", month, err)
+		return events.APIGatewayProxyResponse{Body: `{"error": "Month must be YYYY-MM"}`, StatusCode: 400, Headers: deps.Headers}, nil
+	}
+
 	dirPath := ledgerPrefix + ledgerType
-
-	if month != "" {
-		if _, err := time.Parse("2006-01", month); err != nil {
-			fmt.Printf("Invalid month: %s - Error: %v\n", month, err)
-			return events.APIGatewayProxyResponse{Body: `{"error": "Month must be YYYY-MM"}`, StatusCode: 400, Headers: deps.Headers}, nil
+	path := fmt.Sprintf("%s/%s.json", dirPath, month)
+	content, err := deps.Data.Get(path)
+	var ledger MonthlyLedger
+	if err != nil {
+		openingBalance, foundPrev := findPreviousClosingBalance(dirPath, month, deps)
+		if foundPrev {
+			ledger.OpeningBalance = openingBalance
+			ledger.ClosingBalance = openingBalance
 		}
-		path := fmt.Sprintf("%s/%s.json", dirPath, month)
-		content, err := deps.Data.Get(path)
-		var ledger MonthlyLedger
-		if err != nil {
-			openingBalance, foundPrev := findPreviousClosingBalance(dirPath, month, deps)
-			if foundPrev {
-				ledger.OpeningBalance = openingBalance
-				ledger.ClosingBalance = openingBalance
-			}
-			body, _ := json.Marshal(ledger)
-			return events.APIGatewayProxyResponse{Body: string(body), StatusCode: 200, Headers: deps.Headers}, nil
-		}
-		if err := json.Unmarshal(content, &ledger); err != nil {
-			fmt.Printf("Invalid ledger format: %s - Error: %v\n", path, err)
-			return events.APIGatewayProxyResponse{Body: `{"error": "Invalid ledger format"}`, StatusCode: 400, Headers: deps.Headers}, nil
-		}
-
 		body, _ := json.Marshal(ledger)
 		return events.APIGatewayProxyResponse{Body: string(body), StatusCode: 200, Headers: deps.Headers}, nil
 	}
-
-	items, err := deps.Data.List(dirPath)
-	if err != nil {
-		if strings.Contains(err.Error(), "NoSuchKey") || strings.Contains(err.Error(), "no such file") {
-			return events.APIGatewayProxyResponse{Body: "[]", StatusCode: 200, Headers: deps.Headers}, nil
-		}
-		return errorResponse(err, deps.Headers), nil
+	if err := json.Unmarshal(content, &ledger); err != nil {
+		fmt.Printf("Invalid ledger format: %s - Error: %v\n", path, err)
+		return events.APIGatewayProxyResponse{Body: `{"error": "Invalid ledger format"}`, StatusCode: 400, Headers: deps.Headers}, nil
 	}
 
-	var allLedgers []MonthlyLedger
-	for _, item := range items {
-		if strings.HasSuffix(item.Name, ".json") {
-			content, err := deps.Data.Get(item.Path)
-			if err != nil {
-				fmt.Printf("Failed to read ledger: %s - Error: %v\n", item.Path, err)
-				continue
-			}
-			var ledger MonthlyLedger
-			if err := json.Unmarshal(content, &ledger); err != nil {
-				fmt.Printf("Invalid ledger format: %s - Error: %v\n", item.Path, err)
-				continue
-			}
-			allLedgers = append(allLedgers, ledger)
-		}
-	}
-
-	for i := 0; i < len(allLedgers); i++ {
-		for j := i + 1; j < len(allLedgers); j++ {
-			if allLedgers[i].Month > allLedgers[j].Month {
-				allLedgers[i], allLedgers[j] = allLedgers[j], allLedgers[i]
-			}
-		}
-	}
-
-	body, _ := json.Marshal(allLedgers)
+	body, _ := json.Marshal(ledger)
 	return events.APIGatewayProxyResponse{Body: string(body), StatusCode: 200, Headers: deps.Headers}, nil
+
 }
 
 func findPreviousClosingBalance(dirPath, month string, deps Dependencies) (float64, bool) {
