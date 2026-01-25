@@ -33,7 +33,7 @@ type MonthlyLedger struct {
 	Transactions   []Transaction `json:"transactions"`
 }
 
-const ledgerPrefix = "ledgers/"
+const ledgerPrefix = "ledger/"
 
 func LedgerGet(_ context.Context, request events.APIGatewayProxyRequest, deps Dependencies) (events.APIGatewayProxyResponse, error) {
 	ledgerType := request.QueryStringParameters["type"]

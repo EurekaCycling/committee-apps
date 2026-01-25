@@ -106,6 +106,7 @@ function App() {
   const useMockAuth = import.meta.env.VITE_NO_AUTH === 'true';
   const [config, setConfig] = useState<AppConfig | null>(null);
   const [configError, setConfigError] = useState<string | null>(null);
+  const [isAmplifyReady, setIsAmplifyReady] = useState(useMockAuth);
 
   useEffect(() => {
     let isMounted = true;
@@ -135,6 +136,7 @@ function App() {
         Cognito: config.cognito,
       },
     });
+    setIsAmplifyReady(true);
   }, [config]);
 
   if (configError) {
@@ -149,6 +151,14 @@ function App() {
     return (
       <div className="page-container">
         <div className="loading">Loading configuration…</div>
+      </div>
+    );
+  }
+
+  if (!isAmplifyReady) {
+    return (
+      <div className="page-container">
+        <div className="loading">Initializing authentication…</div>
       </div>
     );
   }
