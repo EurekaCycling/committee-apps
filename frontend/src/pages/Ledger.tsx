@@ -80,11 +80,11 @@ export function Ledger() {
                             return (await res.json()) as MonthlyLedger;
                         } catch (err) {
                             console.error(err);
-                            return null;
                         }
                     })
                 );
-                const ledgers = results.filter((ledger): ledger is MonthlyLedger => ledger !== null);
+                const ledgers = results.filter((ledger): ledger is MonthlyLedger => ledger != null);
+                console.log('Loaded ledger data:', ledgers);
                 setData(ledgers);
                 // Open the last month by default
                 const lastMonth = ledgers.length > 0
@@ -240,6 +240,9 @@ export function Ledger() {
         let carryOverBalance = processedMonths[0]?.openingBalance || 0;
 
         const results = processedMonths.map((month) => {
+            if (!month.transactions) {
+                return {...month, transactions: []} as MonthlyLedger;
+            }
             const currentOpeningBalance = carryOverBalance;
             const sortedTxs = [...month.transactions].sort((a, b) => {
                 const dateComp = a.date.localeCompare(b.date);
