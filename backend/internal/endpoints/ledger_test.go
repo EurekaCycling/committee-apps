@@ -16,7 +16,7 @@ func TestLedgerGet(t *testing.T) {
 		t.Skip("skipping test in CI")
 	}
 
-	bucketName := os.Getenv("committeeappsbackendprod-databuckete3889a50-hnlnorx7vzql")
+	bucketName := "committeeappsbackendprod-databuckete3889a50-hnlnorx7vzql"
 	prov, err := storage.NewS3StorageProvider(context.Background(), bucketName)
 	if err != nil {
 		t.Fatal(err)

@@ -58,6 +58,7 @@ func LedgerGet(_ context.Context, request events.APIGatewayProxyRequest, deps De
 	content, err := deps.Data.Get(path)
 	var ledger MonthlyLedger
 	if err != nil {
+		fmt.Printf("Ledger not found: %s - %v\n", path, err)
 		openingBalance, foundPrev := findPreviousClosingBalance(dirPath, month, deps)
 		if foundPrev {
 			ledger.OpeningBalance = openingBalance
