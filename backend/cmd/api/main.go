@@ -41,19 +41,20 @@ type route struct {
 }
 
 var routes = map[string]route{
-	"GET:/hello":              {handler: endpoints.Hello},
-	"GET:/documents/list":     {handler: endpoints.DocumentsList},
-	"GET:/documents/raw":      {handler: endpoints.DocumentsRaw},
-	"GET:/documents/view":     {handler: endpoints.DocumentsView},
-	"POST:/documents/save":    {handler: endpoints.DocumentsSave},
-	"POST:/documents/upload":  {handler: endpoints.DocumentsUpload},
-	"POST:/documents/mkdir":   {handler: endpoints.DocumentsMkdir},
-	"GET:/ledger":             {handler: endpoints.LedgerGet},
-	"GET:/ledger/pdf":         {handler: endpoints.LedgerPdf},
-	"POST:/ledger":            {handler: endpoints.LedgerPost},
-	"GET:/ledger/categories":  {handler: endpoints.LedgerCategoriesGet},
-	"POST:/ledger/categories": {handler: endpoints.LedgerCategoriesPost},
-	"GET:/reports/financial":  {handler: endpoints.FinancialReportGet},
+	"GET:/hello":               {handler: endpoints.Hello},
+	"GET:/documents/list":      {handler: endpoints.DocumentsList},
+	"GET:/documents/raw":       {handler: endpoints.DocumentsRaw},
+	"GET:/documents/view":      {handler: endpoints.DocumentsView},
+	"POST:/documents/save":     {handler: endpoints.DocumentsSave},
+	"POST:/documents/upload":   {handler: endpoints.DocumentsUpload},
+	"POST:/documents/mkdir":    {handler: endpoints.DocumentsMkdir},
+	"GET:/ledger":              {handler: endpoints.LedgerGet},
+	"GET:/ledger/pdf":          {handler: endpoints.LedgerPdf},
+	"POST:/ledger":             {handler: endpoints.LedgerPost},
+	"POST:/ledger/import/back": {handler: endpoints.LedgerBankImport},
+	"GET:/ledger/categories":   {handler: endpoints.LedgerCategoriesGet},
+	"POST:/ledger/categories":  {handler: endpoints.LedgerCategoriesPost},
+	"GET:/reports/financial":   {handler: endpoints.FinancialReportGet},
 }
 
 func handleRequest(ctx context.Context, request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
