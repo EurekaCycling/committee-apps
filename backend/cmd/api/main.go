@@ -51,7 +51,7 @@ var routes = map[string]route{
 	"GET:/ledger":              {handler: endpoints.LedgerGet},
 	"GET:/ledger/pdf":          {handler: endpoints.LedgerPdf},
 	"POST:/ledger":             {handler: endpoints.LedgerPost},
-	"POST:/ledger/import/back": {handler: endpoints.LedgerBankImport},
+	"POST:/ledger/import/bank": {handler: endpoints.LedgerBankImport},
 	"GET:/ledger/categories":   {handler: endpoints.LedgerCategoriesGet},
 	"POST:/ledger/categories":  {handler: endpoints.LedgerCategoriesPost},
 	"GET:/reports/financial":   {handler: endpoints.FinancialReportGet},
