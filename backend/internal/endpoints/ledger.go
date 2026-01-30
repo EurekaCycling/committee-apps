@@ -300,7 +300,7 @@ func LedgerPdf(_ context.Context, request events.APIGatewayProxyRequest, deps De
 }
 
 func LedgerCategoriesGet(_ context.Context, _ events.APIGatewayProxyRequest, deps Dependencies) (events.APIGatewayProxyResponse, error) {
-	path := "categories.json"
+	path := ledgerPrefix+"/categories.json"
 	content, err := deps.Data.Get(path)
 	if err != nil {
 		if strings.Contains(err.Error(), "NoSuchKey") || strings.Contains(err.Error(), "no such file") {
