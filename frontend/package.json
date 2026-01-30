@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "cy:open": "op run --env-file=op_env -- cypress open --e2e --browser chrome",
+    "cy:run": "op run --env-file=op_env -- cypress run"
   },
   "dependencies": {
     "@aws-amplify/ui-react": "^6.13.2",
@@ -25,6 +27,7 @@
     "@types/react": "^19.2.5",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.1",
+    "cypress": "^13.17.0",
     "eslint": "^9.39.1",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.24",
