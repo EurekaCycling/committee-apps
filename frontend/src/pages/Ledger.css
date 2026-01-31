@@ -226,6 +226,93 @@
     color: var(--success-color);
 }
 
+.transaction-row .editable-cell {
+    cursor: pointer;
+}
+
+.editable-value {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.inline-edit {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.inline-edit input,
+.inline-edit select {
+    width: 100%;
+    min-width: 140px;
+    padding: 0.35rem 0.5rem;
+    border: 1px solid var(--border-color);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    border-radius: 4px;
+    font-size: 0.85rem;
+}
+
+.inline-edit input:focus,
+.inline-edit select:focus {
+    outline: none;
+    border-color: var(--accent-color);
+}
+
+.inline-edit-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.inline-edit-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-primary);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.inline-edit-btn.confirm {
+    color: var(--success-color);
+    border-color: rgba(46, 204, 113, 0.4);
+}
+
+.inline-edit-btn.cancel {
+    color: var(--danger-color);
+    border-color: rgba(231, 76, 60, 0.4);
+}
+
+.inline-edit-btn:hover {
+    background: var(--bg-secondary);
+}
+
+.inline-edit-error-row td {
+    padding: 0;
+    border-bottom: none;
+}
+
+.inline-edit-error {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin: 0.35rem 1rem -0.2rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 8px;
+    border: 1px solid rgba(231, 76, 60, 0.35);
+    background: rgba(231, 76, 60, 0.12);
+    color: var(--text-primary);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.08);
+}
+
 /* Add Transaction Row */
 .add-transaction-row {
     background: var(--bg-secondary);

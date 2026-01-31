@@ -110,6 +110,14 @@ export type LedgerTransactionInput = {
     amount: number;
 };
 
+export type LedgerTransactionEditInput = {
+    month: string;
+    type: TransactionType;
+    transactionId: string;
+    field: 'category' | 'description';
+    value: string;
+};
+
 export async function createLedgerTransaction(
     type: TransactionType,
     transaction: LedgerTransactionInput
@@ -122,6 +130,19 @@ export async function createLedgerTransaction(
     const res = await apiFetch(`/ledger/transactions?type=${type}`, {
         method: 'POST',
         body: JSON.stringify(transaction),
+    });
+    await res.text();
+}
+
+export async function updateLedgerTransaction(input: LedgerTransactionEditInput): Promise<void> {
+    if (import.meta.env.VITE_NO_AUTH === 'true') {
+        console.log('Mocking Ledger Transaction Update', input);
+        return;
+    }
+
+    const res = await apiFetch('/ledger/transactions/edit', {
+        method: 'POST',
+        body: JSON.stringify(input),
     });
     await res.text();
 }

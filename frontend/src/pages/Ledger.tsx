@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
-import { FaMoneyBillWave, FaUniversity, FaCreditCard } from 'react-icons/fa';
-import { apiFetch, createLedgerTransaction, fetchCategories } from '../api';
+import { Fragment, useEffect, useState } from 'react';
+import type { KeyboardEvent } from 'react';
+import { FaMoneyBillWave, FaUniversity, FaCreditCard, FaCheck, FaTimes } from 'react-icons/fa';
+import { apiFetch, createLedgerTransaction, fetchCategories, updateLedgerTransaction } from '../api';
 import type { MonthlyLedger, TransactionType } from '../mocks/ledgerData';
 import { usePageTitle } from '../hooks/usePageTitle';
 import './Ledger.css';
@@ -43,6 +44,12 @@ export function Ledger() {
     const [ledgers, setLedgers] = useState<MonthlyLedger[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [editErrors, setEditErrors] = useState<Record<string, string>>({});
+    const [editing, setEditing] = useState<{
+        txId: string;
+        field: 'category' | 'description';
+        value: string;
+    } | null>(null);
     const [categories, setCategories] = useState<string[]>([]);
     const [draft, setDraft] = useState({
         date: getDateKey(new Date()),
@@ -84,6 +91,8 @@ export function Ledger() {
             setLoading(true);
             setError(null);
             setLedgers([]);
+            setEditing(null);
+            setEditErrors({});
             setDraft(prev => ({
                 ...prev,
                 date: getDateKey(new Date())
@@ -120,6 +129,106 @@ export function Ledger() {
             ...prev,
             [field]: value
         }));
+    };
+
+    const beginEdit = (txId: string, field: 'category' | 'description', value: string) => {
+        setEditing({ txId, field, value });
+        setEditErrors(prev => {
+            if (!prev[txId]) {
+                return prev;
+            }
+            const next = { ...prev };
+            delete next[txId];
+            return next;
+        });
+    };
+
+    const cancelEdit = () => {
+        setEditing(null);
+    };
+
+    const dismissEditError = (txId: string) => {
+        setEditErrors(prev => {
+            if (!prev[txId]) {
+                return prev;
+            }
+            const next = { ...prev };
+            delete next[txId];
+            return next;
+        });
+    };
+
+    const handleEditKeyDown = (
+        event: KeyboardEvent<HTMLInputElement | HTMLSelectElement>,
+        tx: MonthlyLedger['transactions'][number],
+        monthLabel: string
+    ) => {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            void saveEdit(tx, monthLabel);
+        }
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            cancelEdit();
+        }
+    };
+
+    const saveEdit = async (tx: MonthlyLedger['transactions'][number], monthLabel: string) => {
+        if (!editing || editing.txId !== tx.id) {
+            return;
+        }
+        const field = editing.field;
+        const currentValue = field === 'category' ? tx.category : tx.description;
+        if (editing.value === currentValue) {
+            setEditing(null);
+            return;
+        }
+
+        try {
+            await updateLedgerTransaction({
+                month: monthLabel,
+                type,
+                transactionId: tx.id,
+                field,
+                value: editing.value
+            });
+            setLedgers(prev => prev.map(ledger => {
+                if (ledger.month !== monthLabel) {
+                    return ledger;
+                }
+                const updatedTransactions = ledger.transactions?.map(item => {
+                    if (item.id !== tx.id) {
+                        return item;
+                    }
+                    return {
+                        ...item,
+                        [field]: editing.value
+                    };
+                }) ?? [];
+                return {
+                    ...ledger,
+                    transactions: updatedTransactions
+                };
+            }));
+            setEditing(null);
+            setEditErrors(prev => {
+                if (!prev[tx.id]) {
+                    return prev;
+                }
+                const next = { ...prev };
+                delete next[tx.id];
+                return next;
+            });
+        } catch (err) {
+            console.error(err);
+            const message = err instanceof Error
+                ? err.message
+                : 'Failed to update transaction. Please try again.';
+            setEditErrors(prev => ({
+                ...prev,
+                [tx.id]: message
+            }));
+        }
     };
 
     const handleAddTransaction = async () => {
@@ -231,17 +340,124 @@ export function Ledger() {
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {transactions.map(tx => (
-                                                    <tr key={tx.id}>
-                                                        <td>{tx.date}</td>
-                                                        <td>{tx.category}</td>
-                                                        <td>{tx.description}</td>
-                                                        <td className={`right ${tx.amount < 0 ? 'neg' : 'pos'}`}>
-                                                            {tx.amount.toFixed(2)}
-                                                        </td>
-                                                        <td className="right">{tx.runningBalance.toFixed(2)}</td>
-                                                    </tr>
-                                                ))}
+                                                {transactions.map(tx => {
+                                                    const rowError = editErrors[tx.id];
+                                                    const isEditingCategory = editing?.txId === tx.id && editing.field === 'category';
+                                                    const isEditingDescription = editing?.txId === tx.id && editing.field === 'description';
+                                                    return (
+                                                        <Fragment key={tx.id}>
+                                                            {rowError && (
+                                                                <tr className="inline-edit-error-row">
+                                                                    <td colSpan={5}>
+                                                                        <div className="inline-edit-error" role="status">
+                                                                            <span>{rowError}</span>
+                                                                            <button
+                                                                                type="button"
+                                                                                className="ledger-alert-close"
+                                                                                aria-label="Dismiss error"
+                                                                                onClick={() => dismissEditError(tx.id)}
+                                                                            >
+                                                                                ×
+                                                                            </button>
+                                                                        </div>
+                                                                    </td>
+                                                                </tr>
+                                                            )}
+                                                            <tr className="transaction-row">
+                                                                <td>{tx.date}</td>
+                                                                <td
+                                                                    className="editable-cell"
+                                                                    onClick={() => beginEdit(tx.id, 'category', tx.category)}
+                                                                >
+                                                                    {isEditingCategory ? (
+                                                                        <div className="inline-edit" onClick={event => event.stopPropagation()}>
+                                                                            <select
+                                                                                value={editing?.value ?? ''}
+                                                                                onChange={event => setEditing(prev => (prev ? { ...prev, value: event.target.value } : prev))}
+                                                                                onKeyDown={event => handleEditKeyDown(event, tx, monthLabel)}
+                                                                            >
+                                                                                {categories.map(category => (
+                                                                                    <option key={category} value={category}>{category}</option>
+                                                                                ))}
+                                                                            </select>
+                                                                            <div className="inline-edit-actions">
+                                                                            <button
+                                                                                type="button"
+                                                                                className="inline-edit-btn confirm"
+                                                                                aria-label="Save category"
+                                                                                onClick={event => {
+                                                                                    event.stopPropagation();
+                                                                                    void saveEdit(tx, monthLabel);
+                                                                                }}
+                                                                            >
+                                                                                <FaCheck />
+                                                                            </button>
+                                                                            <button
+                                                                                type="button"
+                                                                                className="inline-edit-btn cancel"
+                                                                                aria-label="Cancel edit"
+                                                                                onClick={event => {
+                                                                                    event.stopPropagation();
+                                                                                    cancelEdit();
+                                                                                }}
+                                                                            >
+                                                                                    <FaTimes />
+                                                                                </button>
+                                                                            </div>
+                                                                        </div>
+                                                                    ) : (
+                                                                        <span className="editable-value">{tx.category}</span>
+                                                                    )}
+                                                                </td>
+                                                                <td
+                                                                    className="editable-cell"
+                                                                    onClick={() => beginEdit(tx.id, 'description', tx.description)}
+                                                                >
+                                                                    {isEditingDescription ? (
+                                                                        <div className="inline-edit" onClick={event => event.stopPropagation()}>
+                                                                            <input
+                                                                                type="text"
+                                                                                value={editing?.value ?? ''}
+                                                                                onChange={event => setEditing(prev => (prev ? { ...prev, value: event.target.value } : prev))}
+                                                                                onKeyDown={event => handleEditKeyDown(event, tx, monthLabel)}
+                                                                            />
+                                                                            <div className="inline-edit-actions">
+                                                                            <button
+                                                                                type="button"
+                                                                                className="inline-edit-btn confirm"
+                                                                                aria-label="Save description"
+                                                                                onClick={event => {
+                                                                                    event.stopPropagation();
+                                                                                    void saveEdit(tx, monthLabel);
+                                                                                }}
+                                                                            >
+                                                                                <FaCheck />
+                                                                            </button>
+                                                                            <button
+                                                                                type="button"
+                                                                                className="inline-edit-btn cancel"
+                                                                                aria-label="Cancel edit"
+                                                                                onClick={event => {
+                                                                                    event.stopPropagation();
+                                                                                    cancelEdit();
+                                                                                }}
+                                                                            >
+                                                                                    <FaTimes />
+                                                                                </button>
+                                                                            </div>
+                                                                        </div>
+                                                                    ) : (
+                                                                        <span className="editable-value">{tx.description}</span>
+                                                                    )}
+                                                                </td>
+                                                                <td className={`right ${tx.amount < 0 ? 'neg' : 'pos'}`}>
+                                                                    {tx.amount.toFixed(2)}
+                                                                </td>
+                                                                <td className="right">{tx.runningBalance.toFixed(2)}</td>
+                                                            </tr>
+                                                        </Fragment>
+                                                    );
+                                                })}
                                                 {isCurrentMonth && (
                                                     <>
                                                         {error && (

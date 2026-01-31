@@ -74,6 +74,14 @@ type transactionInput struct {
 	Amount      float64 `json:"amount"`
 }
 
+type transactionEditRequest struct {
+	Month         string `json:"month"`
+	Type          string `json:"type"`
+	TransactionID string `json:"transactionId"`
+	Field         string `json:"field"`
+	Value         string `json:"value"`
+}
+
 func addTransactionToLedger(ledger MonthlyLedger, categories []string, input transactionInput) (*MonthlyLedger, *Transaction, error) {
 	if input.Date == "" || input.Category == "" {
 		return nil, nil, fmt.Errorf("date and category are required")
@@ -324,6 +332,107 @@ func LedgerTransactionsPost(_ context.Context, request events.APIGatewayProxyReq
 		return errorResponse(err, deps.Headers), nil
 	}
 	return events.APIGatewayProxyResponse{Body: string(updatedContent), StatusCode: 200, Headers: deps.Headers}, nil
+}
+
+func LedgerTransactionsEditPost(_ context.Context, request events.APIGatewayProxyRequest, deps Dependencies) (events.APIGatewayProxyResponse, error) {
+	var input transactionEditRequest
+	if err := json.Unmarshal([]byte(request.Body), &input); err != nil {
+		fmt.Printf("Invalid transaction edit format - Error: %v\n", err)
+		return events.APIGatewayProxyResponse{Body: `{"message": "Invalid format", "error": "Invalid format"}`, StatusCode: 400, Headers: deps.Headers}, nil
+	}
+
+	month := strings.TrimSpace(input.Month)
+	if month == "" {
+		return events.APIGatewayProxyResponse{Body: `{"message": "Month is required", "error": "Month is required"}`, StatusCode: 400, Headers: deps.Headers}, nil
+	}
+	if _, err := time.Parse("2006-01", month); err != nil {
+		return events.APIGatewayProxyResponse{Body: `{"message": "Month must be YYYY-MM", "error": "Month must be YYYY-MM"}`, StatusCode: 400, Headers: deps.Headers}, nil
+	}
+
+	ledgerType := strings.TrimSpace(input.Type)
+	if ledgerType == "" {
+		return events.APIGatewayProxyResponse{Body: `{"message": "Type is required", "error": "Type is required"}`, StatusCode: 400, Headers: deps.Headers}, nil
+	}
+	ledgerType = strings.ToUpper(ledgerType)
+
+	transactionID := strings.TrimSpace(input.TransactionID)
+	if transactionID == "" {
+		return events.APIGatewayProxyResponse{Body: `{"message": "Transaction id is required", "error": "Transaction id is required"}`, StatusCode: 400, Headers: deps.Headers}, nil
+	}
+
+	field := strings.TrimSpace(strings.ToLower(input.Field))
+	if field != "category" && field != "description" {
+		return events.APIGatewayProxyResponse{Body: `{"message": "Field must be category or description", "error": "Field must be category or description"}`, StatusCode: 400, Headers: deps.Headers}, nil
+	}
+
+	value := strings.TrimSpace(input.Value)
+	if field == "category" {
+		if value == "" {
+			return events.APIGatewayProxyResponse{Body: `{"message": "Category is required", "error": "Category is required"}`, StatusCode: 400, Headers: deps.Headers}, nil
+		}
+		categories, err := loadLedgerCategories(deps)
+		if err != nil {
+			return errorResponse(err, deps.Headers), nil
+		}
+		categoryValid := false
+		for _, category := range categories {
+			if category == value {
+				categoryValid = true
+				break
+			}
+		}
+		if !categoryValid {
+			return events.APIGatewayProxyResponse{Body: `{"message": "Category is not valid", "error": "Category is not valid"}`, StatusCode: 400, Headers: deps.Headers}, nil
+		}
+	}
+
+	dirPath := ledgerPrefix + ledgerType
+	path := fmt.Sprintf("%s/%s.json", dirPath, month)
+	content, err := deps.Data.Get(path)
+	if err != nil {
+		if strings.Contains(err.Error(), "NoSuchKey") || strings.Contains(err.Error(), "no such file") {
+			return events.APIGatewayProxyResponse{Body: `{"message": "Ledger not found", "error": "Ledger not found"}`, StatusCode: 404, Headers: deps.Headers}, nil
+		}
+		return errorResponse(err, deps.Headers), nil
+	}
+
+	var ledger MonthlyLedger
+	if err := json.Unmarshal(content, &ledger); err != nil {
+		fmt.Printf("Invalid ledger format: %s - Error: %v\n", path, err)
+		return events.APIGatewayProxyResponse{Body: `{"message": "Invalid ledger format", "error": "Invalid ledger format"}`, StatusCode: 400, Headers: deps.Headers}, nil
+	}
+
+	updated := false
+	var updatedTx Transaction
+	for idx, tx := range ledger.Transactions {
+		if tx.ID != transactionID {
+			continue
+		}
+		if field == "category" {
+			tx.Category = value
+		} else {
+			tx.Description = value
+		}
+		ledger.Transactions[idx] = tx
+		updatedTx = tx
+		updated = true
+		break
+	}
+
+	if !updated {
+		return events.APIGatewayProxyResponse{Body: `{"message": "Transaction not found", "error": "Transaction not found"}`, StatusCode: 404, Headers: deps.Headers}, nil
+	}
+
+	updatedContent, _ := json.Marshal(ledger)
+	if err := deps.Data.Save(path, updatedContent); err != nil {
+		return errorResponse(err, deps.Headers), nil
+	}
+
+	responseBody, _ := json.Marshal(map[string]any{
+		"status":      "ok",
+		"transaction": updatedTx,
+	})
+	return events.APIGatewayProxyResponse{Body: string(responseBody), StatusCode: 200, Headers: deps.Headers}, nil
 }
 
 func LedgerBankImport(_ context.Context, request events.APIGatewayProxyRequest, deps Dependencies) (events.APIGatewayProxyResponse, error) {
