@@ -154,7 +154,7 @@ func addTransactionToLedger(ledger MonthlyLedger, categories []string, input tra
 }
 
 func loadLedgerCategories(deps Dependencies) ([]string, error) {
-	path := ledgerPrefix + "/categories.json"
+	path := ledgerPrefix + "categories.json"
 	content, err := deps.Data.Get(path)
 	if err != nil {
 		if strings.Contains(err.Error(), "NoSuchKey") || strings.Contains(err.Error(), "no such file") {
@@ -465,7 +465,7 @@ func LedgerPdf(_ context.Context, request events.APIGatewayProxyRequest, deps De
 }
 
 func LedgerCategoriesGet(_ context.Context, _ events.APIGatewayProxyRequest, deps Dependencies) (events.APIGatewayProxyResponse, error) {
-	path := ledgerPrefix + "/categories.json"
+	path := ledgerPrefix + "categories.json"
 	content, err := deps.Data.Get(path)
 	if err != nil {
 		if strings.Contains(err.Error(), "NoSuchKey") || strings.Contains(err.Error(), "no such file") {
@@ -479,7 +479,7 @@ func LedgerCategoriesGet(_ context.Context, _ events.APIGatewayProxyRequest, dep
 }
 
 func LedgerCategoriesPost(_ context.Context, request events.APIGatewayProxyRequest, deps Dependencies) (events.APIGatewayProxyResponse, error) {
-	path := "categories.json"
+	path := ledgerPrefix + "categories.json"
 	err := deps.Data.Save(path, []byte(request.Body))
 	if err != nil {
 		return errorResponse(err, deps.Headers), nil
