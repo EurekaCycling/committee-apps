@@ -126,6 +126,41 @@ export async function createLedgerTransaction(
     await res.text();
 }
 
+export async function submitReimbursement(formData: FormData): Promise<void> {
+    if (import.meta.env.VITE_NO_AUTH === 'true') {
+        console.log('Mocking Reimbursement Submit', Object.fromEntries(formData.entries()));
+        return;
+    }
+
+    const session = await fetchAuthSession();
+    const token = session.tokens?.idToken?.toString();
+
+    const headers = new Headers();
+    if (token) {
+        headers.set('Authorization', `Bearer ${token}`);
+    }
+
+    const baseUrl = await resolveApiBaseUrl();
+    const response = await fetch(`${baseUrl}/reimbursements`, {
+        method: 'POST',
+        headers,
+        body: formData,
+    });
+
+    if (!response.ok) {
+        let errorMsg = `${response.status} ${response.statusText}`;
+        try {
+            const errData = await response.json();
+            if (errData && errData.message) {
+                errorMsg = errData.message;
+            }
+        } catch (_) {
+            // ignore JSON parse errors
+        }
+        throw new Error(`API request failed: ${errorMsg}`);
+    }
+}
+
 export type FinancialReportLineItem = {
     label: string;
     amount: number;

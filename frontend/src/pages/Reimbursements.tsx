@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { usePageTitle } from '../hooks/usePageTitle';
+import { fetchCategories, submitReimbursement } from '../api';
 import './Reimbursements.css';
 
 type MemberMode = 'existing' | 'new';
@@ -13,11 +14,35 @@ export function Reimbursements() {
     const [memberMode, setMemberMode] = useState<MemberMode>('existing');
     const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('payid');
     const [receiptName, setReceiptName] = useState<string>('');
+    const [receiptFile, setReceiptFile] = useState<File | null>(null);
+    const [categories, setCategories] = useState<string[]>([]);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    useEffect(() => {
+        let isActive = true;
+
+        async function loadCategories() {
+            try {
+                const cats = await fetchCategories();
+                if (isActive) {
+                    setCategories(cats);
+                }
+            } catch (err) {
+                console.error('Failed to load categories', err);
+            }
+        }
+
+        loadCategories();
+
+        return () => {
+            isActive = false;
+        };
+    }, []);
 
     const handleReceiptChange = (file?: File | null) => {
-        if (file) {
-            setReceiptName(file.name);
-        }
+        if (!file) return;
+        setReceiptName(file.name);
+        setReceiptFile(file);
     };
 
     const handleReceiptInput = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -31,10 +56,33 @@ export function Reimbursements() {
         handleReceiptChange(file);
     };
 
-    const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
-        setRequestId(buildRequestId());
-        setReceiptName('');
+        if (isSubmitting) return;
+
+        const form = event.currentTarget;
+        const formData = new FormData(form);
+        formData.set('requestId', requestId);
+        formData.set('memberMode', memberMode);
+        formData.set('paymentMethod', paymentMethod);
+        if (receiptFile) {
+            formData.set('receipt', receiptFile);
+        }
+
+        setIsSubmitting(true);
+        try {
+            await submitReimbursement(formData);
+            form.reset();
+            setRequestId(buildRequestId());
+            setReceiptName('');
+            setReceiptFile(null);
+            setMemberMode('existing');
+            setPaymentMethod('payid');
+        } catch (err) {
+            console.error('Failed to submit reimbursement', err);
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     return (
@@ -85,6 +133,7 @@ export function Reimbursements() {
                             <p className="receipt-filename">{receiptName || 'No receipt selected yet.'}</p>
                             <input
                                 id="receipt-upload"
+                                name="receipt"
                                 type="file"
                                 accept="application/pdf,image/jpeg,image/png"
                                 onChange={handleReceiptInput}
@@ -92,6 +141,7 @@ export function Reimbursements() {
                             />
                             <input
                                 id="receipt-camera"
+                                name="receipt"
                                 type="file"
                                 accept="image/*"
                                 capture="environment"
@@ -109,12 +159,16 @@ export function Reimbursements() {
                         <div className="form-grid">
                             <label className="field">
                                 <span>Category</span>
-                                <input
-                                    type="text"
+                                <select
                                     name="category"
-                                    placeholder="Equipment, Event Fee, Membership"
                                     data-testid="reimbursement-category"
-                                />
+                                    defaultValue=""
+                                >
+                                    <option value="" disabled>Select category</option>
+                                    {categories.map(category => (
+                                        <option key={category} value={category}>{category}</option>
+                                    ))}
+                                </select>
                             </label>
                             <label className="field">
                                 <span>Purchase date</span>
@@ -274,8 +328,14 @@ export function Reimbursements() {
                     </div>
 
                     <div className="form-actions">
-                        <button type="submit" className="btn-primary" data-testid="reimbursement-submit">Submit request</button>
-                        <button type="button" className="btn-secondary" data-testid="reimbursement-save-draft">Save draft</button>
+                        <button
+                            type="submit"
+                            className="btn-primary"
+                            data-testid="reimbursement-submit"
+                            disabled={isSubmitting}
+                        >
+                            {isSubmitting ? 'Submitting...' : 'Submit request'}
+                        </button>
                     </div>
                 </form>
             </div>
