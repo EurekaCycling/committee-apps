@@ -103,6 +103,29 @@ export async function saveCategories(categories: string[]): Promise<void> {
     await res.text();
 }
 
+export type LedgerTransactionInput = {
+    date: string;
+    category: string;
+    description: string;
+    amount: number;
+};
+
+export async function createLedgerTransaction(
+    type: TransactionType,
+    transaction: LedgerTransactionInput
+): Promise<void> {
+    if (import.meta.env.VITE_NO_AUTH === 'true') {
+        console.log(`Mocking Ledger Transaction Create for ${type}`, transaction);
+        return;
+    }
+
+    const res = await apiFetch(`/ledger/transactions?type=${type}`, {
+        method: 'POST',
+        body: JSON.stringify(transaction),
+    });
+    await res.text();
+}
+
 export type FinancialReportLineItem = {
     label: string;
     amount: number;

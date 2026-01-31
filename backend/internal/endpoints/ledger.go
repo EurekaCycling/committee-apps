@@ -67,6 +67,109 @@ type bankImportResponse struct {
 	ClosingBalance float64  `json:"closingBalance"`
 }
 
+type transactionInput struct {
+	Date        string  `json:"date"`
+	Category    string  `json:"category"`
+	Description string  `json:"description"`
+	Amount      float64 `json:"amount"`
+}
+
+func addTransactionToLedger(ledger MonthlyLedger, categories []string, input transactionInput) (*MonthlyLedger, *Transaction, error) {
+	if input.Date == "" || input.Category == "" {
+		return nil, nil, fmt.Errorf("date and category are required")
+	}
+	if math.IsNaN(input.Amount) || math.IsInf(input.Amount, 0) {
+		return nil, nil, fmt.Errorf("amount must be a number")
+	}
+	if math.Abs(roundCurrency(input.Amount)-input.Amount) > 0.0000001 {
+		return nil, nil, fmt.Errorf("amount must have two decimals")
+	}
+
+	categoryValid := false
+	for _, category := range categories {
+		if category == input.Category {
+			categoryValid = true
+			break
+		}
+	}
+	if !categoryValid {
+		return nil, nil, fmt.Errorf("category is not valid")
+	}
+
+	transactionDate, err := time.Parse("2006-01-02", input.Date)
+	if err != nil {
+		return nil, nil, fmt.Errorf("date must be YYYY-MM-DD")
+	}
+	if ledger.Month != "" {
+		monthKey := transactionDate.Format("2006-01")
+		if ledger.Month != monthKey {
+			return nil, nil, fmt.Errorf("transaction date must match ledger month")
+		}
+	}
+
+	var previousBalance float64
+	if len(ledger.Transactions) > 0 {
+		lastTx := ledger.Transactions[len(ledger.Transactions)-1]
+		lastDate, err := time.Parse("2006-01-02", lastTx.Date)
+		if err != nil {
+			return nil, nil, fmt.Errorf("last transaction date is invalid")
+		}
+		if transactionDate.Before(lastDate) {
+			return nil, nil, fmt.Errorf("transaction date cannot be older than last entry")
+		}
+		previousBalance = lastTx.RunningBalance
+	} else {
+		previousBalance = ledger.OpeningBalance
+	}
+
+	amount := roundCurrency(input.Amount)
+	newBalance := roundCurrency(previousBalance + amount)
+	if newBalance <= 0 {
+		return nil, nil, fmt.Errorf("closing balance must be greater than 0")
+	}
+
+	id, err := newUUID()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	newTx := Transaction{
+		ID:             id,
+		Date:           input.Date,
+		Category:       input.Category,
+		Description:    input.Description,
+		Amount:         amount,
+		RunningBalance: newBalance,
+	}
+
+	updatedTransactions := make([]Transaction, len(ledger.Transactions)+1)
+	copy(updatedTransactions, ledger.Transactions)
+	updatedTransactions[len(ledger.Transactions)] = newTx
+
+	updatedLedger := ledger
+	updatedLedger.Transactions = updatedTransactions
+	updatedLedger.ClosingBalance = newBalance
+
+	return &updatedLedger, &newTx, nil
+}
+
+func loadLedgerCategories(deps Dependencies) ([]string, error) {
+	path := ledgerPrefix + "/categories.json"
+	content, err := deps.Data.Get(path)
+	if err != nil {
+		if strings.Contains(err.Error(), "NoSuchKey") || strings.Contains(err.Error(), "no such file") {
+			return []string{"Membership", "Event Fee", "Equipment", "Reimbursement", "Sponsorship", "Misc"}, nil
+		}
+		return nil, err
+	}
+
+	var categories []string
+	if err := json.Unmarshal(content, &categories); err != nil {
+		return nil, err
+	}
+	return categories, nil
+}
+
 func LedgerGet(_ context.Context, request events.APIGatewayProxyRequest, deps Dependencies) (events.APIGatewayProxyResponse, error) {
 	ledgerType := request.QueryStringParameters["type"]
 	if ledgerType == "" {
@@ -159,6 +262,68 @@ func LedgerPost(_ context.Context, request events.APIGatewayProxyRequest, deps D
 		}
 	}
 	return events.APIGatewayProxyResponse{Body: `{"status":"ok"}`, StatusCode: 200, Headers: deps.Headers}, nil
+}
+
+func LedgerTransactionsPost(_ context.Context, request events.APIGatewayProxyRequest, deps Dependencies) (events.APIGatewayProxyResponse, error) {
+	ledgerType := strings.TrimSpace(request.QueryStringParameters["type"])
+	if ledgerType == "" {
+		fmt.Printf("Missing ledger type\n")
+		return events.APIGatewayProxyResponse{Body: `{"message": "Type is required", "error": "Type is required"}`, StatusCode: 400, Headers: deps.Headers}, nil
+	}
+	ledgerType = strings.ToUpper(ledgerType)
+
+	var input transactionInput
+	if err := json.Unmarshal([]byte(request.Body), &input); err != nil {
+		fmt.Printf("Invalid transaction post format - Error: %v\n", err)
+		return events.APIGatewayProxyResponse{Body: `{"message": "Invalid format", "error": "Invalid format"}`, StatusCode: 400, Headers: deps.Headers}, nil
+	}
+
+	transactionDate, err := time.Parse("2006-01-02", input.Date)
+	if err != nil {
+		return events.APIGatewayProxyResponse{Body: `{"message": "Date must be YYYY-MM-DD", "error": "Date must be YYYY-MM-DD"}`, StatusCode: 400, Headers: deps.Headers}, nil
+	}
+	month := transactionDate.Format("2006-01")
+
+	categories, err := loadLedgerCategories(deps)
+	if err != nil {
+		return errorResponse(err, deps.Headers), nil
+	}
+
+	dirPath := ledgerPrefix + ledgerType
+	path := fmt.Sprintf("%s/%s.json", dirPath, month)
+	content, err := deps.Data.Get(path)
+	ledger := MonthlyLedger{
+		PK:             fmt.Sprintf("LEDGER#%s#%s", ledgerType, month),
+		Month:          month,
+		Type:           ledgerType,
+		OpeningBalance: 0,
+		ClosingBalance: 0,
+		Transactions:   []Transaction{},
+	}
+	if err != nil {
+		if !strings.Contains(err.Error(), "NoSuchKey") && !strings.Contains(err.Error(), "no such file") {
+			return errorResponse(err, deps.Headers), nil
+		}
+		openingBalance, foundPrev := findPreviousClosingBalance(dirPath, month, deps)
+		if foundPrev {
+			ledger.OpeningBalance = openingBalance
+			ledger.ClosingBalance = openingBalance
+		}
+	} else if err := json.Unmarshal(content, &ledger); err != nil {
+		fmt.Printf("Invalid ledger format: %s - Error: %v\n", path, err)
+		return events.APIGatewayProxyResponse{Body: `{"message": "Invalid ledger format", "error": "Invalid ledger format"}`, StatusCode: 400, Headers: deps.Headers}, nil
+	}
+
+	updatedLedger, _, err := addTransactionToLedger(ledger, categories, input)
+	if err != nil {
+		return events.APIGatewayProxyResponse{Body: fmt.Sprintf(`{"message": "%s", "error": "%s"}`, err.Error(), err.Error()), StatusCode: 400, Headers: deps.Headers}, nil
+	}
+
+	updatedContent, _ := json.Marshal(updatedLedger)
+	if err := deps.Data.Save(path, updatedContent); err != nil {
+		return errorResponse(err, deps.Headers), nil
+	}
+	return events.APIGatewayProxyResponse{Body: string(updatedContent), StatusCode: 200, Headers: deps.Headers}, nil
 }
 
 func LedgerBankImport(_ context.Context, request events.APIGatewayProxyRequest, deps Dependencies) (events.APIGatewayProxyResponse, error) {
@@ -300,7 +465,7 @@ func LedgerPdf(_ context.Context, request events.APIGatewayProxyRequest, deps De
 }
 
 func LedgerCategoriesGet(_ context.Context, _ events.APIGatewayProxyRequest, deps Dependencies) (events.APIGatewayProxyResponse, error) {
-	path := ledgerPrefix+"/categories.json"
+	path := ledgerPrefix + "/categories.json"
 	content, err := deps.Data.Get(path)
 	if err != nil {
 		if strings.Contains(err.Error(), "NoSuchKey") || strings.Contains(err.Error(), "no such file") {

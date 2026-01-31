@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { FaMoneyBillWave, FaUniversity, FaCreditCard } from 'react-icons/fa';
-import { apiFetch, fetchCategories } from '../api';
+import { apiFetch, createLedgerTransaction, fetchCategories } from '../api';
 import type { MonthlyLedger, TransactionType } from '../mocks/ledgerData';
 import { usePageTitle } from '../hooks/usePageTitle';
 import './Ledger.css';
@@ -67,6 +67,12 @@ export function Ledger() {
     useEffect(() => {
         let isActive = true;
 
+        const fetchMonthLedger = async (month: string) => {
+            const res = await apiFetch(`/ledger?type=${type}&month=${month}`);
+            const ledger = (await res.json()) as MonthlyLedger;
+            return { ...ledger, month: ledger.month || month };
+        };
+
         async function load() {
             const currentDate = new Date();
             currentDate.setDate(1);
@@ -82,13 +88,7 @@ export function Ledger() {
                 date: getDateKey(new Date())
             }));
             try {
-                const results = await Promise.all(
-                    monthsToFetch.map(async month => {
-                        const res = await apiFetch(`/ledger?type=${type}&month=${month}`);
-                        const ledger = (await res.json()) as MonthlyLedger;
-                        return { ...ledger, month: ledger.month || month };
-                    })
-                );
+                const results = await Promise.all(monthsToFetch.map(fetchMonthLedger));
                 if (isActive) {
                     setLedgers(results);
                 }
@@ -118,13 +118,8 @@ export function Ledger() {
         }));
     };
 
-    const handleAddTransaction = () => {
+    const handleAddTransaction = async () => {
         const currentMonth = getMonthKey(new Date());
-        const currentLedger = ledgers.find(ledger => ledger.month === currentMonth);
-        if (!currentLedger) {
-            setError('Current month ledger not found.');
-            return;
-        }
         if (!draft.date || !draft.category || draft.amount === '') {
             setError('Please fill in date, category, and amount.');
             return;
@@ -136,37 +131,33 @@ export function Ledger() {
             return;
         }
 
-        const transactions = currentLedger.transactions ?? [];
-        const previousBalance = transactions.length > 0
-            ? transactions[transactions.length - 1].runningBalance
-            : currentLedger.openingBalance;
-        const runningBalance = Number((previousBalance + amountValue).toFixed(2));
+        setError(null);
+        try {
+            await createLedgerTransaction(type, {
+                date: draft.date,
+                category: draft.category,
+                description: draft.description,
+                amount: amountValue
+            });
 
-        const newTransaction = {
-            id: crypto.randomUUID(),
-            date: draft.date,
-            category: draft.category,
-            description: draft.description,
-            amount: amountValue,
-            runningBalance
-        };
+            const res = await apiFetch(`/ledger?type=${type}&month=${currentMonth}`);
+            const ledger = (await res.json()) as MonthlyLedger;
+            const refreshedLedger = { ...ledger, month: ledger.month || currentMonth };
+            setLedgers(prev => prev.map(item => (item.month === currentMonth ? refreshedLedger : item)));
 
-        setLedgers(prev => prev.map(ledger => {
-            if (ledger.month !== currentMonth) return ledger;
-            const updatedTransactions = [...transactions, newTransaction];
-            return {
-                ...ledger,
-                transactions: updatedTransactions,
-                closingBalance: runningBalance
-            };
-        }));
-
-        setDraft({
-            date: getDateKey(new Date()),
-            category: '',
-            description: '',
-            amount: ''
-        });
+            setDraft({
+                date: getDateKey(new Date()),
+                category: '',
+                description: '',
+                amount: ''
+            });
+        } catch (err) {
+            console.error(err);
+            const message = err instanceof Error
+                ? err.message
+                : 'Failed to add transaction. Please try again.';
+            setError(message);
+        }
     };
 
     useEffect(() => {
@@ -198,12 +189,6 @@ export function Ledger() {
                     ))}
                 </div>
             </div>
-
-            {error && (
-                <div className="ledger-alert error" role="status">
-                    <span>{error}</span>
-                </div>
-            )}
 
             {loading ? (
                 <div className="loading">Loading...</div>
@@ -254,52 +239,63 @@ export function Ledger() {
                                                     </tr>
                                                 ))}
                                                 {isCurrentMonth && (
-                                                    <tr className="add-transaction-row">
-                                                        <td>
-                                                            <select
-                                                                value={draft.date}
-                                                                onChange={event => handleDraftUpdate('date', event.target.value)}
-                                                            >
-                                                                {getDaysOptions(monthLabel).map(option => (
-                                                                    <option key={option.value} value={option.value}>{option.label}</option>
-                                                                ))}
-                                                            </select>
-                                                        </td>
-                                                        <td>
-                                                            <select
-                                                                value={draft.category}
-                                                                onChange={event => handleDraftUpdate('category', event.target.value)}
-                                                            >
-                                                                <option value="">Select...</option>
-                                                                {categories.map(category => (
-                                                                    <option key={category} value={category}>{category}</option>
-                                                                ))}
-                                                            </select>
-                                                        </td>
-                                                        <td>
-                                                            <input
-                                                                type="text"
-                                                                placeholder="Description"
-                                                                value={draft.description}
-                                                                onChange={event => handleDraftUpdate('description', event.target.value)}
-                                                            />
-                                                        </td>
-                                                        <td className="right">
-                                                            <input
-                                                                type="number"
-                                                                step="0.01"
-                                                                placeholder="0.00"
-                                                                className="amount-input"
-                                                                value={draft.amount}
-                                                                onChange={event => handleDraftUpdate('amount', event.target.value)}
-                                                            />
-                                                        </td>
-                                                        <td className="right">
-                                                            <button type="button" className="add-btn" onClick={handleAddTransaction}>
-                                                                Add
-                                                            </button>
-                                                        </td>
-                                                    </tr>
+                                                    <>
+                                                        {error && (
+                                                            <tr className="add-transaction-row">
+                                                                <td colSpan={5}>
+                                                                    <div className="ledger-alert error" role="status">
+                                                                        <span>{error}</span>
+                                                                    </div>
+                                                                </td>
+                                                            </tr>
+                                                        )}
+                                                        <tr className="add-transaction-row">
+                                                            <td>
+                                                                <select
+                                                                    value={draft.date}
+                                                                    onChange={event => handleDraftUpdate('date', event.target.value)}
+                                                                >
+                                                                    {getDaysOptions(monthLabel).map(option => (
+                                                                        <option key={option.value} value={option.value}>{option.label}</option>
+                                                                    ))}
+                                                                </select>
+                                                            </td>
+                                                            <td>
+                                                                <select
+                                                                    value={draft.category}
+                                                                    onChange={event => handleDraftUpdate('category', event.target.value)}
+                                                                >
+                                                                    <option value="">Select...</option>
+                                                                    {categories.map(category => (
+                                                                        <option key={category} value={category}>{category}</option>
+                                                                    ))}
+                                                                </select>
+                                                            </td>
+                                                            <td>
+                                                                <input
+                                                                    type="text"
+                                                                    placeholder="Description"
+                                                                    value={draft.description}
+                                                                    onChange={event => handleDraftUpdate('description', event.target.value)}
+                                                                />
+                                                            </td>
+                                                            <td className="right">
+                                                                <input
+                                                                    type="number"
+                                                                    step="0.01"
+                                                                    placeholder="0.00"
+                                                                    className="amount-input"
+                                                                    value={draft.amount}
+                                                                    onChange={event => handleDraftUpdate('amount', event.target.value)}
+                                                                />
+                                                            </td>
+                                                            <td className="right">
+                                                                <button type="button" className="add-btn" onClick={handleAddTransaction}>
+                                                                    Add
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                    </>
                                                 )}
                                             </tbody>
                                         </table>

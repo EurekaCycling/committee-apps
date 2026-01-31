@@ -3,8 +3,10 @@ package endpoints
 import (
 	"context"
 	"encoding/json"
+	"math"
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/aws/aws-lambda-go/events"
@@ -88,6 +90,220 @@ func TestLedgerGet(t *testing.T) {
 				// print json
 				js, _ := json.MarshalIndent(got, "", "  ")
 				t.Logf("%s", js)
+			}
+		})
+	}
+}
+
+func TestAddTransactionToLedger(t *testing.T) {
+	categories := []string{"Membership", "Event Fee", "Equipment"}
+
+	makeLedger := func(month string, opening float64, transactions []Transaction) MonthlyLedger {
+		closing := opening
+		if len(transactions) > 0 {
+			closing = transactions[len(transactions)-1].RunningBalance
+		}
+		return MonthlyLedger{
+			PK:             "LEDGER#CASH#" + month,
+			Month:          month,
+			Type:           "CASH",
+			OpeningBalance: opening,
+			ClosingBalance: closing,
+			Transactions:   transactions,
+		}
+	}
+
+	baseTransactions := []Transaction{
+		{
+			ID:             "tx-1",
+			Date:           "2025-01-10",
+			Category:       "Membership",
+			Description:    "Existing",
+			Amount:         50.00,
+			RunningBalance: 150.00,
+		},
+	}
+
+	tests := []struct {
+		name        string
+		ledger      MonthlyLedger
+		categories  []string
+		input       transactionInput
+		wantErr     bool
+		errContains string
+		validate    func(t *testing.T, ledger *MonthlyLedger, tx *Transaction)
+	}{
+		{
+			name:       "success append newer date",
+			ledger:     makeLedger("2025-01", 100.00, baseTransactions),
+			categories: categories,
+			input: transactionInput{
+				Date:        "2025-01-11",
+				Category:    "Equipment",
+				Description: "Purchase",
+				Amount:      25.55,
+			},
+			validate: func(t *testing.T, ledger *MonthlyLedger, tx *Transaction) {
+				if ledger == nil || tx == nil {
+					t.Fatalf("expected ledger and tx")
+				}
+				if len(ledger.Transactions) != 2 {
+					t.Fatalf("expected 2 transactions, got %d", len(ledger.Transactions))
+				}
+				if ledger.ClosingBalance != 175.55 {
+					t.Fatalf("expected closing 175.55, got %.2f", ledger.ClosingBalance)
+				}
+				if tx.RunningBalance != 175.55 {
+					t.Fatalf("expected running balance 175.55, got %.2f", tx.RunningBalance)
+				}
+				if tx.Description != "Purchase" {
+					t.Fatalf("expected description to be set")
+				}
+				if tx.ID == "" {
+					t.Fatalf("expected id to be set")
+				}
+			},
+		},
+		{
+			name:       "success same date as last entry",
+			ledger:     makeLedger("2025-01", 100.00, baseTransactions),
+			categories: categories,
+			input: transactionInput{
+				Date:        "2025-01-10",
+				Category:    "Membership",
+				Description: "Same day",
+				Amount:      10.00,
+			},
+			validate: func(t *testing.T, ledger *MonthlyLedger, tx *Transaction) {
+				if ledger.ClosingBalance != 160.00 {
+					t.Fatalf("expected closing 160.00, got %.2f", ledger.ClosingBalance)
+				}
+			},
+		},
+		{
+			name:       "success ledger month empty",
+			ledger:     makeLedger("", 20.00, nil),
+			categories: categories,
+			input: transactionInput{
+				Date:        "2025-02-01",
+				Category:    "Event Fee",
+				Description: "Fee",
+				Amount:      5.00,
+			},
+			validate: func(t *testing.T, ledger *MonthlyLedger, tx *Transaction) {
+				if ledger.ClosingBalance != 25.00 {
+					t.Fatalf("expected closing 25.00, got %.2f", ledger.ClosingBalance)
+				}
+			},
+		},
+		{
+			name:       "success zero amount",
+			ledger:     makeLedger("2025-01", 100.00, baseTransactions),
+			categories: categories,
+			input: transactionInput{
+				Date:        "2025-01-11",
+				Category:    "Equipment",
+				Description: "Zero",
+				Amount:      0.00,
+			},
+			validate: func(t *testing.T, ledger *MonthlyLedger, tx *Transaction) {
+				if ledger.ClosingBalance != 150.00 {
+					t.Fatalf("expected closing 150.00, got %.2f", ledger.ClosingBalance)
+				}
+			},
+		},
+		{
+			name:        "fail missing category",
+			ledger:      makeLedger("2025-01", 100.00, nil),
+			categories:  categories,
+			input:       transactionInput{Date: "2025-01-01", Amount: 1.00},
+			wantErr:     true,
+			errContains: "date and category",
+		},
+		{
+			name:        "fail invalid category",
+			ledger:      makeLedger("2025-01", 100.00, nil),
+			categories:  categories,
+			input:       transactionInput{Date: "2025-01-01", Category: "Other", Amount: 1.00},
+			wantErr:     true,
+			errContains: "category is not valid",
+		},
+		{
+			name:        "fail amount NaN",
+			ledger:      makeLedger("2025-01", 100.00, nil),
+			categories:  categories,
+			input:       transactionInput{Date: "2025-01-01", Category: "Membership", Amount: math.NaN()},
+			wantErr:     true,
+			errContains: "amount must be a number",
+		},
+		{
+			name:        "fail amount inf",
+			ledger:      makeLedger("2025-01", 100.00, nil),
+			categories:  categories,
+			input:       transactionInput{Date: "2025-01-01", Category: "Membership", Amount: math.Inf(1)},
+			wantErr:     true,
+			errContains: "amount must be a number",
+		},
+		{
+			name:        "fail amount more than two decimals",
+			ledger:      makeLedger("2025-01", 100.00, nil),
+			categories:  categories,
+			input:       transactionInput{Date: "2025-01-01", Category: "Membership", Amount: 1.001},
+			wantErr:     true,
+			errContains: "two decimals",
+		},
+		{
+			name:        "fail invalid date format",
+			ledger:      makeLedger("2025-01", 100.00, nil),
+			categories:  categories,
+			input:       transactionInput{Date: "01-01-2025", Category: "Membership", Amount: 1.00},
+			wantErr:     true,
+			errContains: "YYYY-MM-DD",
+		},
+		{
+			name:        "fail older than last entry",
+			ledger:      makeLedger("2025-01", 100.00, baseTransactions),
+			categories:  categories,
+			input:       transactionInput{Date: "2025-01-09", Category: "Membership", Amount: 1.00},
+			wantErr:     true,
+			errContains: "older than last entry",
+		},
+		{
+			name:        "fail month mismatch",
+			ledger:      makeLedger("2025-01", 100.00, nil),
+			categories:  categories,
+			input:       transactionInput{Date: "2025-02-01", Category: "Membership", Amount: 1.00},
+			wantErr:     true,
+			errContains: "match ledger month",
+		},
+		{
+			name:        "fail closing balance zero",
+			ledger:      makeLedger("2025-01", 10.00, nil),
+			categories:  categories,
+			input:       transactionInput{Date: "2025-01-01", Category: "Membership", Amount: -10.00},
+			wantErr:     true,
+			errContains: "greater than 0",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotLedger, gotTx, err := addTransactionToLedger(tt.ledger, tt.categories, tt.input)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("expected error=%v, got err=%v", tt.wantErr, err)
+			}
+			if tt.wantErr {
+				if gotLedger != nil || gotTx != nil {
+					t.Fatalf("expected nil ledger and tx on error")
+				}
+				if tt.errContains != "" && err != nil && !strings.Contains(err.Error(), tt.errContains) {
+					t.Fatalf("expected error to contain %q, got %q", tt.errContains, err.Error())
+				}
+				return
+			}
+
+			if tt.validate != nil {
+				tt.validate(t, gotLedger, gotTx)
 			}
 		})
 	}
