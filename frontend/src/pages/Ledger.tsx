@@ -83,14 +83,18 @@ export function Ledger() {
             }
             setLoading(true);
             setError(null);
+            setLedgers([]);
             setDraft(prev => ({
                 ...prev,
                 date: getDateKey(new Date())
             }));
             try {
-                const results = await Promise.all(monthsToFetch.map(fetchMonthLedger));
-                if (isActive) {
-                    setLedgers(results);
+                for (const month of monthsToFetch) {
+                    const ledger = await fetchMonthLedger(month);
+                    if (!isActive) {
+                        return;
+                    }
+                    setLedgers(prev => [...prev, ledger]);
                 }
             } catch (err) {
                 console.error(err);
