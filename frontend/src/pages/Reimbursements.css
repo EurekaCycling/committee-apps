@@ -1,0 +1,268 @@
+.reimbursements-page {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+.reimbursements-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 2rem;
+}
+
+.reimbursements-header p {
+    color: var(--text-secondary);
+    margin-top: 0.5rem;
+}
+
+.request-id {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    padding: 1rem 1.25rem;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    background: var(--bg-secondary);
+    min-width: 260px;
+}
+
+.request-id span {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-secondary);
+}
+
+.request-id strong {
+    font-size: 1rem;
+    word-break: break-all;
+}
+
+.reimbursements-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.list-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+}
+
+.list-header h2 {
+    margin: 0;
+}
+
+.list-note {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.list-empty {
+    padding: 1.5rem;
+    border-radius: 12px;
+    border: 1px dashed var(--border-color);
+    text-align: center;
+    background: var(--bg-primary);
+    color: var(--text-secondary);
+}
+
+.reimbursements-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.form-section {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.form-section:last-of-type {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 1rem;
+}
+
+.section-header h2 {
+    margin: 0;
+}
+
+.section-header span {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.receipt-dropzone {
+    padding: 1.5rem;
+    border: 2px dashed var(--border-color);
+    border-radius: 12px;
+    background: var(--bg-primary);
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.receipt-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.receipt-hint {
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+.receipt-filename {
+    font-weight: 600;
+    margin: 0;
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem 1.5rem;
+}
+
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    font-size: 0.95rem;
+}
+
+.field span {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+}
+
+.field input,
+.field textarea {
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 0.65rem 0.75rem;
+    background: #ffffff;
+    color: var(--text-primary);
+    font-size: 0.95rem;
+}
+
+.field textarea {
+    resize: vertical;
+}
+
+.field input:focus,
+.field textarea:focus {
+    outline: 2px solid rgba(52, 152, 219, 0.35);
+    border-color: var(--accent-color);
+}
+
+.span-2 {
+    grid-column: span 2;
+}
+
+.member-toggle {
+    display: flex;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+    font-size: 0.95rem;
+}
+
+.member-toggle label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.field-note {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    margin: 0;
+}
+
+.form-actions {
+    display: flex;
+    gap: 1rem;
+    justify-content: flex-end;
+    margin-top: 1.5rem;
+}
+
+.btn-primary,
+.btn-secondary,
+.btn-outline {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.6em 1.2em;
+    border-radius: 8px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 0.9rem;
+    border: 1px solid transparent;
+}
+
+.btn-primary {
+    background-color: var(--accent-color);
+    color: white;
+}
+
+.btn-primary:hover {
+    opacity: 0.9;
+}
+
+.btn-secondary {
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    border-color: var(--border-color);
+}
+
+.btn-secondary:hover {
+    background-color: var(--bg-tertiary);
+}
+
+.btn-outline {
+    background: transparent;
+    border-color: var(--accent-color);
+    color: var(--accent-color);
+}
+
+.btn-outline:hover {
+    background-color: var(--accent-color);
+    color: white;
+}
+
+@media (max-width: 900px) {
+    .reimbursements-header {
+        flex-direction: column;
+    }
+
+    .request-id {
+        width: 100%;
+    }
+
+    .form-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .span-2 {
+        grid-column: span 1;
+    }
+
+    .form-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+}
