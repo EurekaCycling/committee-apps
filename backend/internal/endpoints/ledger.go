@@ -469,6 +469,7 @@ func LedgerCategoriesGet(_ context.Context, _ events.APIGatewayProxyRequest, dep
 	content, err := deps.Data.Get(path)
 	if err != nil {
 		if strings.Contains(err.Error(), "NoSuchKey") || strings.Contains(err.Error(), "no such file") {
+			fmt.Printf("Failed to load categoires: %s - Error: %v", path, err)
 			defaultCats := `["Membership", "Event Fee", "Equipment", "Reimbursement", "Sponsorship", "Misc"]`
 			return events.APIGatewayProxyResponse{Body: defaultCats, StatusCode: 200, Headers: deps.Headers}, nil
 		}
