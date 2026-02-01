@@ -275,6 +275,30 @@ func ReimbursementsPost(_ context.Context, request events.APIGatewayProxyRequest
 	return events.APIGatewayProxyResponse{Body: string(body), StatusCode: 200, Headers: deps.Headers}, nil
 }
 
+func ReimbursementListGet(_ context.Context, _ events.APIGatewayProxyRequest, deps Dependencies) (events.APIGatewayProxyResponse, error) {
+	path := reimbursementPrefix + "list.json"
+	content, err := deps.Data.Get(path)
+	list := []ReimbursementListItem{}
+	if err != nil {
+		if !isNoSuchKey(err) {
+			return errorResponse(err, deps.Headers), nil
+		}
+	} else if err := json.Unmarshal(content, &list); err != nil {
+		return errorResponse(err, deps.Headers), nil
+	}
+
+	filtered := make([]ReimbursementListItem, 0, len(list))
+	for _, item := range list {
+		if isReimbursementClosed(item.Status) {
+			continue
+		}
+		filtered = append(filtered, item)
+	}
+
+	body, _ := json.Marshal(filtered)
+	return events.APIGatewayProxyResponse{Body: string(body), StatusCode: 200, Headers: deps.Headers}, nil
+}
+
 func parseReimbursementForm(request events.APIGatewayProxyRequest) (map[string]string, *reimbursementFile, error) {
 	contentType := headerValue(request.Headers, "Content-Type")
 	if contentType == "" {
@@ -410,6 +434,13 @@ func resolveReceiptExtension(file *reimbursementFile) (string, error) {
 	default:
 		return "", fmt.Errorf("Receipt must be PDF, JPG, or PNG")
 	}
+}
+
+func isReimbursementClosed(status string) bool {
+	normalized := strings.TrimSpace(status)
+	return strings.EqualFold(normalized, "Reconciled") ||
+		strings.EqualFold(normalized, "Reconsiled") ||
+		strings.EqualFold(normalized, "Rejected")
 }
 
 func updateReimbursementList(deps Dependencies, reimbursement ReimbursementRequest) error {

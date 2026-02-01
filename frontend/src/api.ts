@@ -171,6 +171,15 @@ export type ReimbursementSubmitInput = {
     receipt?: ReimbursementReceiptInput;
 };
 
+export type ReimbursementListItem = {
+    reference: string;
+    status: string;
+    title: string;
+    amount: number;
+    requestId?: string;
+    createdAt?: string;
+};
+
 export async function submitReimbursement(payload: ReimbursementSubmitInput): Promise<void> {
     if (import.meta.env.VITE_NO_AUTH === 'true') {
         console.log('Mocking Reimbursement Submit', payload);
@@ -182,6 +191,19 @@ export async function submitReimbursement(payload: ReimbursementSubmitInput): Pr
         body: JSON.stringify(payload),
     });
     await res.text();
+}
+
+export async function fetchReimbursementList(): Promise<ReimbursementListItem[]> {
+    if (import.meta.env.VITE_NO_AUTH === 'true') {
+        return [];
+    }
+
+    const res = await apiFetch('/reimbursement');
+    const data = await res.json();
+    if (!data) {
+        throw new Error('Reimbursement list response was empty');
+    }
+    return data as ReimbursementListItem[];
 }
 
 export type FinancialReportLineItem = {

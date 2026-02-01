@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import type { ReimbursementSubmitInput } from '../api';
-import { fetchCategories, submitReimbursement } from '../api';
+import type { ReimbursementListItem, ReimbursementSubmitInput } from '../api';
+import { fetchCategories, fetchReimbursementList, submitReimbursement } from '../api';
 import { usePageTitle } from '../hooks/usePageTitle';
 import './Reimbursements.css';
 
@@ -8,6 +8,19 @@ type MemberMode = 'existing' | 'new';
 type PaymentMethod = 'payid' | 'bank';
 
 const buildRequestId = () => crypto.randomUUID();
+const formatAmount = (amount: number) => new Intl.NumberFormat('en-AU', {
+    style: 'currency',
+    currency: 'AUD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+}).format(amount);
+const formatDate = (value?: string) => (value
+    ? new Date(value).toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' })
+    : '');
+const formatStatusClass = (status: string) => `status-${status
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '')}`;
 
 const readFileAsBase64 = (file: File): Promise<string> => new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -31,7 +44,21 @@ export function Reimbursements() {
     const [receiptName, setReceiptName] = useState<string>('');
     const [receiptFile, setReceiptFile] = useState<File | null>(null);
     const [categories, setCategories] = useState<string[]>([]);
+    const [reimbursements, setReimbursements] = useState<ReimbursementListItem[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isLoadingList, setIsLoadingList] = useState(false);
+
+    const refreshReimbursements = async () => {
+        setIsLoadingList(true);
+        try {
+            const items = await fetchReimbursementList();
+            setReimbursements(items);
+        } catch (err) {
+            console.error('Failed to load reimbursements', err);
+        } finally {
+            setIsLoadingList(false);
+        }
+    };
 
     useEffect(() => {
         let isActive = true;
@@ -47,7 +74,24 @@ export function Reimbursements() {
             }
         }
 
+        async function loadReimbursements() {
+            setIsLoadingList(true);
+            try {
+                const items = await fetchReimbursementList();
+                if (isActive) {
+                    setReimbursements(items);
+                }
+            } catch (err) {
+                console.error('Failed to load reimbursements', err);
+            } finally {
+                if (isActive) {
+                    setIsLoadingList(false);
+                }
+            }
+        }
+
         loadCategories();
+        loadReimbursements();
 
         return () => {
             isActive = false;
@@ -109,6 +153,7 @@ export function Reimbursements() {
             setReceiptFile(null);
             setMemberMode('existing');
             setPaymentMethod('payid');
+            await refreshReimbursements();
         } catch (err) {
             console.error('Failed to submit reimbursement', err);
         } finally {
@@ -134,10 +179,34 @@ export function Reimbursements() {
                     <h2>Recent requests</h2>
                     <span className="list-note">Pending approval, payments, and reconciliations appear here.</span>
                 </div>
-                <div className="list-empty">
-                    <p>No reimbursement requests yet.</p>
-                    <p>Create one below to get started.</p>
-                </div>
+                {isLoadingList ? (
+                    <div className="list-empty">
+                        <p>Loading reimbursements...</p>
+                    </div>
+                ) : reimbursements.length === 0 ? (
+                    <div className="list-empty">
+                        <p>No reimbursement requests yet.</p>
+                        <p>Create one below to get started.</p>
+                    </div>
+                ) : (
+                    <div className="reimbursements-items">
+                        {reimbursements.map(item => (
+                            <div className="reimbursement-item" key={item.reference}>
+                                <div className="item-main">
+                                    <h3>{item.title || 'Reimbursement request'}</h3>
+                                    <span className="item-meta">
+                                        {item.reference}
+                                        {item.createdAt ? ` • ${formatDate(item.createdAt)}` : ''}
+                                    </span>
+                                </div>
+                                <div className="item-detail">
+                                    <span className="item-amount">{formatAmount(item.amount)}</span>
+                                    <span className={`item-status ${formatStatusClass(item.status)}`}>{item.status}</span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
             </div>
 
             <div className="reimbursements-form card">

@@ -70,6 +70,75 @@
     color: var(--text-secondary);
 }
 
+.reimbursements-items {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.reimbursement-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-primary);
+}
+
+.item-main {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.item-main h3 {
+    margin: 0;
+    font-size: 1rem;
+}
+
+.item-meta {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+}
+
+.item-detail {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.35rem;
+    min-width: 140px;
+}
+
+.item-amount {
+    font-weight: 600;
+}
+
+.item-status {
+    padding: 0.25rem 0.6rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    background: rgba(227, 178, 41, 0.12);
+    color: #a06a00;
+    border: 1px solid rgba(227, 178, 41, 0.35);
+}
+
+.item-status.status-rejected {
+    background: rgba(197, 77, 64, 0.12);
+    color: #9f2d23;
+    border-color: rgba(197, 77, 64, 0.35);
+}
+
+.item-status.status-reconciled,
+.item-status.status-reconsiled {
+    background: rgba(49, 126, 97, 0.12);
+    color: #2b6b52;
+    border-color: rgba(49, 126, 97, 0.35);
+}
+
 .reimbursements-form {
     display: flex;
     flex-direction: column;
