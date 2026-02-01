@@ -147,39 +147,41 @@ export async function updateLedgerTransaction(input: LedgerTransactionEditInput)
     await res.text();
 }
 
-export async function submitReimbursement(formData: FormData): Promise<void> {
+export type ReimbursementReceiptInput = {
+    fileName: string;
+    contentType: string;
+    content: string;
+};
+
+export type ReimbursementSubmitInput = {
+    requestId: string;
+    category: string;
+    purchaseDate: string;
+    amount: number;
+    description: string;
+    memberMode: string;
+    memberSearch?: string;
+    memberName?: string;
+    memberEmail?: string;
+    memberPhone?: string;
+    paymentMethod?: string;
+    payId?: string;
+    bsb?: string;
+    accountNumber?: string;
+    receipt?: ReimbursementReceiptInput;
+};
+
+export async function submitReimbursement(payload: ReimbursementSubmitInput): Promise<void> {
     if (import.meta.env.VITE_NO_AUTH === 'true') {
-        console.log('Mocking Reimbursement Submit', Object.fromEntries(formData.entries()));
+        console.log('Mocking Reimbursement Submit', payload);
         return;
     }
 
-    const session = await fetchAuthSession();
-    const token = session.tokens?.idToken?.toString();
-
-    const headers = new Headers();
-    if (token) {
-        headers.set('Authorization', `Bearer ${token}`);
-    }
-
-    const baseUrl = await resolveApiBaseUrl();
-    const response = await fetch(`${baseUrl}/reimbursements`, {
+    const res = await apiFetch('/reimbursements', {
         method: 'POST',
-        headers,
-        body: formData,
+        body: JSON.stringify(payload),
     });
-
-    if (!response.ok) {
-        let errorMsg = `${response.status} ${response.statusText}`;
-        try {
-            const errData = await response.json();
-            if (errData && errData.message) {
-                errorMsg = errData.message;
-            }
-        } catch (_) {
-            // ignore JSON parse errors
-        }
-        throw new Error(`API request failed: ${errorMsg}`);
-    }
+    await res.text();
 }
 
 export type FinancialReportLineItem = {

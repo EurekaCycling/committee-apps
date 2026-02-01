@@ -1,12 +1,27 @@
 import { useEffect, useState } from 'react';
-import { usePageTitle } from '../hooks/usePageTitle';
+import type { ReimbursementSubmitInput } from '../api';
 import { fetchCategories, submitReimbursement } from '../api';
+import { usePageTitle } from '../hooks/usePageTitle';
 import './Reimbursements.css';
 
 type MemberMode = 'existing' | 'new';
 type PaymentMethod = 'payid' | 'bank';
 
 const buildRequestId = () => crypto.randomUUID();
+
+const readFileAsBase64 = (file: File): Promise<string> => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+        if (typeof reader.result !== 'string') {
+            reject(new Error('Unable to read receipt file'));
+            return;
+        }
+        const base64 = reader.result.split(',')[1] ?? '';
+        resolve(base64);
+    };
+    reader.onerror = () => reject(new Error('Unable to read receipt file'));
+    reader.readAsDataURL(file);
+});
 
 export function Reimbursements() {
     usePageTitle('Reimbursements');
@@ -62,16 +77,32 @@ export function Reimbursements() {
 
         const form = event.currentTarget;
         const formData = new FormData(form);
-        formData.set('requestId', requestId);
-        formData.set('memberMode', memberMode);
-        formData.set('paymentMethod', paymentMethod);
-        if (receiptFile) {
-            formData.set('receipt', receiptFile);
-        }
+        const receiptPayload = receiptFile ? {
+            fileName: receiptFile.name,
+            contentType: receiptFile.type,
+            content: await readFileAsBase64(receiptFile),
+        } : undefined;
+        const payload: ReimbursementSubmitInput = {
+            requestId,
+            category: String(formData.get('category') ?? ''),
+            purchaseDate: String(formData.get('purchaseDate') ?? ''),
+            amount: Number(formData.get('amount') ?? 0),
+            description: String(formData.get('description') ?? ''),
+            memberMode,
+            memberSearch: String(formData.get('memberSearch') ?? ''),
+            memberName: String(formData.get('memberName') ?? ''),
+            memberEmail: String(formData.get('memberEmail') ?? ''),
+            memberPhone: String(formData.get('memberPhone') ?? ''),
+            paymentMethod,
+            payId: String(formData.get('payId') ?? ''),
+            bsb: String(formData.get('bsb') ?? ''),
+            accountNumber: String(formData.get('accountNumber') ?? ''),
+            receipt: receiptPayload,
+        };
 
         setIsSubmitting(true);
         try {
-            await submitReimbursement(formData);
+            await submitReimbursement(payload);
             form.reset();
             setRequestId(buildRequestId());
             setReceiptName('');
