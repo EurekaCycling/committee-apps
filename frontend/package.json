@@ -9,7 +9,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "cy:open": "op run --env-file=op_env -- cypress open --e2e --browser chrome",
-    "cy:run": "op run --env-file=op_env -- cypress run"
+    "cy:run": "op run --env-file=op_env -- cypress run",
+    "cy:video": "op run --env-file=op_env -- cypress run --spec cypress/e2e/walkthrough.cy.ts --no-runner-ui --browser chrome --headed"
   },
   "dependencies": {
     "@aws-amplify/ui-react": "^6.13.2",

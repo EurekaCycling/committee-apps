@@ -14,8 +14,8 @@ let cachedConfig: AppConfig | null = null;
 let configPromise: Promise<AppConfig> | null = null;
 
 function getConfigUrl() {
-    const base = new URL(import.meta.env.BASE_URL, window.location.origin);
-    //const base = "https://committee2.eurekacycling.org.au/"
+    //const base = new URL(import.meta.env.BASE_URL, window.location.origin);
+    const base = "https://committee2.eurekacycling.org.au/"
     return new URL(CONFIG_FILE, base).toString();
 }
 

@@ -1,0 +1,1 @@
+go run .  --script ../../../frontend/cypress/voiceover/walkthrough-voiceover.json   --out-dir ../../../frontend/cypress/voiceover/audio   --voice Olivia   --format mp3
