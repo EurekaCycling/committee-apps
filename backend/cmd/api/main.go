@@ -53,6 +53,7 @@ var routes = map[string]route{
 	"POST:/ledger":                   {handler: endpoints.LedgerPost},
 	"POST:/ledger/transactions":      {handler: endpoints.LedgerTransactionsPost},
 	"POST:/ledger/transactions/edit": {handler: endpoints.LedgerTransactionsEditPost},
+	"POST:/ledger/import":            {handler: endpoints.LedgerImport},
 	"POST:/ledger/import/bank":       {handler: endpoints.LedgerBankImport},
 	"GET:/ledger/categories":         {handler: endpoints.LedgerCategoriesGet},
 	"POST:/ledger/categories":        {handler: endpoints.LedgerCategoriesPost},
