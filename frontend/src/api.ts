@@ -147,6 +147,22 @@ export async function updateLedgerTransaction(input: LedgerTransactionEditInput)
     await res.text();
 }
 
+export async function importLedgerCsv(contents: string): Promise<void> {
+    if (import.meta.env.VITE_NO_AUTH === 'true') {
+        console.log('Mocking Ledger CSV Import');
+        return;
+    }
+
+    const res = await apiFetch('/ledger/import', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'text/csv'
+        },
+        body: contents
+    });
+    await res.text();
+}
+
 export type ReimbursementReceiptInput = {
     fileName: string;
     contentType: string;

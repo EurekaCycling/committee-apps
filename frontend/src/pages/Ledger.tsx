@@ -1,7 +1,7 @@
-import { Fragment, useEffect, useState } from 'react';
-import type { KeyboardEvent } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
+import type { ChangeEvent, DragEvent, KeyboardEvent } from 'react';
 import { FaMoneyBillWave, FaUniversity, FaCreditCard, FaCheck, FaTimes } from 'react-icons/fa';
-import { apiFetch, createLedgerTransaction, fetchCategories, updateLedgerTransaction } from '../api';
+import { apiFetch, createLedgerTransaction, fetchCategories, importLedgerCsv, updateLedgerTransaction } from '../api';
 import type { MonthlyLedger, TransactionType } from '../mocks/ledgerData';
 import { usePageTitle } from '../hooks/usePageTitle';
 import './Ledger.css';
@@ -44,6 +44,12 @@ export function Ledger() {
     const [ledgers, setLedgers] = useState<MonthlyLedger[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [importing, setImporting] = useState(false);
+    const [importMessage, setImportMessage] = useState<string | null>(null);
+    const [importError, setImportError] = useState<string | null>(null);
+    const [importFile, setImportFile] = useState<File | null>(null);
+    const [importDragActive, setImportDragActive] = useState(false);
+    const [reloadToken, setReloadToken] = useState(0);
     const [editErrors, setEditErrors] = useState<Record<string, string>>({});
     const [editing, setEditing] = useState<{
         txId: string;
@@ -51,6 +57,7 @@ export function Ledger() {
         value: string;
     } | null>(null);
     const [categories, setCategories] = useState<string[]>([]);
+    const importInputRef = useRef<HTMLInputElement | null>(null);
     const [draft, setDraft] = useState({
         date: getDateKey(new Date()),
         category: '',
@@ -122,7 +129,64 @@ export function Ledger() {
         return () => {
             isActive = false;
         };
-    }, [type]);
+    }, [type, reloadToken]);
+
+    const setImportSelection = (file: File | null) => {
+        setImportFile(file);
+        setImportError(null);
+        setImportMessage(null);
+    };
+
+    const handleImportFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0] ?? null;
+        setImportSelection(file);
+    };
+
+    const handleImportDrop = (event: DragEvent<HTMLDivElement>) => {
+        event.preventDefault();
+        const file = event.dataTransfer.files?.[0] ?? null;
+        setImportSelection(file);
+        setImportDragActive(false);
+    };
+
+    const handleImportDragOver = (event: DragEvent<HTMLDivElement>) => {
+        event.preventDefault();
+        setImportDragActive(true);
+    };
+
+    const handleImportDragLeave = () => {
+        setImportDragActive(false);
+    };
+
+    const handleImportCsv = async () => {
+        if (!importFile) {
+            setImportError('Select a CSV file to import.');
+            setImportMessage(null);
+            return;
+        }
+
+        setImporting(true);
+        setImportError(null);
+        setImportMessage(null);
+        try {
+            const csv = await importFile.text();
+            await importLedgerCsv(csv);
+            setImportMessage(`Imported ${importFile.name}.`);
+            setImportFile(null);
+            if (importInputRef.current) {
+                importInputRef.current.value = '';
+            }
+            setReloadToken(prev => prev + 1);
+        } catch (err) {
+            console.error(err);
+            const message = err instanceof Error
+                ? err.message
+                : 'Failed to import CSV. Please try again.';
+            setImportError(message);
+        } finally {
+            setImporting(false);
+        }
+    };
 
     const handleDraftUpdate = (field: 'date' | 'category' | 'description' | 'amount', value: string) => {
         setDraft(prev => ({
@@ -289,19 +353,74 @@ export function Ledger() {
         <div className="page-container ledger-page">
             <div className="ledger-header">
                 <h1>Ledger</h1>
-                <div className="type-toggle">
-                    {(['BANK', 'CASH', 'CARD'] as TransactionType[]).map(t => (
-                        <button
-                            key={t}
-                            className={`toggle-btn ${type === t ? 'active' : ''}`}
-                            onClick={() => setType(t)}
+                <div className="ledger-actions">
+                    <div className="type-toggle">
+                        {(['BANK', 'CASH', 'CARD'] as TransactionType[]).map(t => (
+                            <button
+                                key={t}
+                                className={`toggle-btn ${type === t ? 'active' : ''}`}
+                                onClick={() => setType(t)}
+                            >
+                                <span className="icon">{ICONS[t]}</span>
+                                {t}
+                            </button>
+                        ))}
+                    </div>
+                    {type !== 'CASH' && (
+                        <div
+                            className={`ledger-import ${importDragActive ? 'is-dragging' : ''}`}
+                            onDragOver={handleImportDragOver}
+                            onDragLeave={handleImportDragLeave}
+                            onDrop={handleImportDrop}
+                            onClick={() => importInputRef.current?.click()}
+                            role="button"
+                            tabIndex={0}
+                            onKeyDown={event => {
+                                if (event.key === 'Enter' || event.key === ' ') {
+                                    event.preventDefault();
+                                    importInputRef.current?.click();
+                                }
+                            }}
                         >
-                            <span className="icon">{ICONS[t]}</span>
-                            {t}
-                        </button>
-                    ))}
+                            <input
+                                ref={importInputRef}
+                                type="file"
+                                accept=".csv,text/csv"
+                                onChange={handleImportFileChange}
+                            />
+                            <button
+                                type="button"
+                                className="import-btn"
+                                onClick={event => {
+                                    event.stopPropagation();
+                                    void handleImportCsv();
+                                }}
+                                disabled={importing}
+                            >
+                                {importing ? 'Importing…' : 'Import CSV'}
+                            </button>
+                            <span className="import-hint">Drop CSV here</span>
+                        </div>
+                    )}
                 </div>
             </div>
+
+            {(importError || importMessage) && (
+                <div className={`ledger-alert ${importError ? 'error' : 'success'}`} role="status">
+                    <span>{importError ?? importMessage}</span>
+                    <button
+                        type="button"
+                        className="ledger-alert-close"
+                        aria-label="Dismiss import status"
+                        onClick={() => {
+                            setImportError(null);
+                            setImportMessage(null);
+                        }}
+                    >
+                        ×
+                    </button>
+                </div>
+            )}
 
             {loading ? (
                 <div className="loading">Loading...</div>
