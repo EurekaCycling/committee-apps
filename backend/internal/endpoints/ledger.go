@@ -449,6 +449,11 @@ func handleLedgerImport(request events.APIGatewayProxyRequest, deps Dependencies
 		return events.APIGatewayProxyResponse{Body: fmt.Sprintf(`{"error": "%s"}`, err.Error()), StatusCode: 400, Headers: deps.Headers}, nil
 	}
 
+	existingByMonth, err := loadLedgerImportExisting(deps, ledgerType, rows)
+	if err != nil {
+		return errorResponse(err, deps.Headers), nil
+	}
+
 	if currentBalance == nil {
 		if requireCurrentBalance {
 			return events.APIGatewayProxyResponse{Body: `{"error": "Current balance is required"}`, StatusCode: 400, Headers: deps.Headers}, nil
@@ -466,7 +471,7 @@ func handleLedgerImport(request events.APIGatewayProxyRequest, deps Dependencies
 		currentBalance = &inferred
 	}
 
-	ledgers, months, openingBalance, closingBalance, err := buildBankImportLedgers(rows, ledgerType, *currentBalance)
+	ledgers, months, openingBalance, closingBalance, err := buildBankImportLedgers(rows, ledgerType, *currentBalance, existingByMonth)
 	if err != nil {
 		return errorResponse(err, deps.Headers), nil
 	}

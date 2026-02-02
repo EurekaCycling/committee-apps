@@ -2,6 +2,7 @@ package endpoints
 
 import (
 	"encoding/csv"
+	"encoding/json"
 	"fmt"
 	"io"
 	"sort"
@@ -77,7 +78,48 @@ func parseBankImportRows(content string) ([]bankImportRow, error) {
 	return rows, nil
 }
 
-func buildBankImportLedgers(rows []bankImportRow, ledgerType string, currentBalance float64) (map[string]MonthlyLedger, []string, float64, float64, error) {
+func loadLedgerImportExisting(deps Dependencies, ledgerType string, rows []bankImportRow) (map[string]map[string]Transaction, error) {
+	if len(rows) == 0 {
+		return nil, nil
+	}
+
+	months := map[string]struct{}{}
+	for _, row := range rows {
+		months[row.Date.Format("2006-01")] = struct{}{}
+	}
+
+	existingByMonth := make(map[string]map[string]Transaction)
+	dirPath := ledgerPrefix + ledgerType
+	for month := range months {
+		path := fmt.Sprintf("%s/%s.json", dirPath, month)
+		content, err := deps.Data.Get(path)
+		if err != nil {
+			if strings.Contains(err.Error(), "NoSuchKey") || strings.Contains(err.Error(), "no such file") {
+				continue
+			}
+			return nil, err
+		}
+		var ledger MonthlyLedger
+		if err := json.Unmarshal(content, &ledger); err != nil {
+			return nil, err
+		}
+		index := make(map[string]Transaction)
+		for _, tx := range ledger.Transactions {
+			key := ledgerImportMatchKey(tx.Date, tx.Amount, tx.Description)
+			if _, ok := index[key]; ok {
+				continue
+			}
+			index[key] = tx
+		}
+		if len(index) > 0 {
+			existingByMonth[month] = index
+		}
+	}
+
+	return existingByMonth, nil
+}
+
+func buildBankImportLedgers(rows []bankImportRow, ledgerType string, currentBalance float64, existingByMonth map[string]map[string]Transaction) (map[string]MonthlyLedger, []string, float64, float64, error) {
 	chrono := make([]bankImportRow, len(rows))
 	copy(chrono, rows)
 	sort.Slice(chrono, func(i, j int) bool {
@@ -96,14 +138,23 @@ func buildBankImportLedgers(rows []bankImportRow, ledgerType string, currentBala
 		chrono[i].RunningBalance = ledgerBalance
 		chrono[i].DateISO = chrono[i].Date.Format("2006-01-02")
 		chrono[i].Month = chrono[i].Date.Format("2006-01")
+		if chrono[i].Category == "" {
+			chrono[i].Category = categorizeBankImport(chrono[i].Description)
+		}
+		if existingByMonth != nil {
+			if existing, ok := existingByMonth[chrono[i].Month]; ok {
+				key := ledgerImportMatchKey(chrono[i].DateISO, chrono[i].Amount, chrono[i].Description)
+				if match, ok := existing[key]; ok && match.ID != "" {
+					chrono[i].ID = match.ID
+					continue
+				}
+			}
+		}
 		id, err := newUUID()
 		if err != nil {
 			return nil, nil, 0, 0, err
 		}
 		chrono[i].ID = id
-		if chrono[i].Category == "" {
-			chrono[i].Category = categorizeBankImport(chrono[i].Description)
-		}
 	}
 
 	monthRows := make(map[string][]bankImportRow)
@@ -160,6 +211,11 @@ func sumBankImportAmounts(rows []bankImportRow) float64 {
 		total += row.Amount
 	}
 	return total
+}
+
+func ledgerImportMatchKey(dateISO string, amount float64, description string) string {
+	normalized := strings.ToLower(strings.Join(strings.Fields(description), " "))
+	return fmt.Sprintf("%s|%.2f|%s", dateISO, roundCurrency(amount), normalized)
 }
 
 func detectBankImportDelimiter(content string) rune {
