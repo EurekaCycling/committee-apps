@@ -1,0 +1,42 @@
+[
+  {
+    "id": "intro",
+    "text": "Welcome to the Eureka Cycling committee portal walkthrough."
+  },
+  {
+    "id": "signin-1",
+    "text": "We start at the sign in screen."
+  },
+  {
+    "id": "signin-2",
+    "text": "Log in with your committee or treasurer account to access the tools."
+  },
+  {
+    "id": "home",
+    "text": "On the home page, you can confirm your role and check the latest backend status message."
+  },
+  {
+    "id": "ledger",
+    "text": "Next is the ledger, where treasurers review monthly transactions, balances, and cash, bank, or card activity."
+  },
+  {
+    "id": "reports",
+    "text": "Financial reports provide year to date and prior financial year snapshots, including income, expenditure, and balance sheet summaries."
+  },
+  {
+    "id": "reimbursements",
+    "text": "Reimbursements let you review recent requests and prepare new submissions with receipts and member payment details."
+  },
+  {
+    "id": "documents",
+    "text": "Documents organizes shared files and folders, with quick access to previews and downloads."
+  },
+  {
+    "id": "wrap-1",
+    "text": "That covers the main areas."
+  },
+  {
+    "id": "wrap-2",
+    "text": "Thanks for watching."
+  }
+]
