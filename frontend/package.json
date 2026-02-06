@@ -13,11 +13,11 @@
     "cy:video": "op run --env-file=op_env -- cypress run --spec cypress/e2e/walkthrough.cy.ts --no-runner-ui --browser chrome --headed"
   },
   "dependencies": {
-    "@aws-amplify/ui-react": "^6.13.2",
-    "aws-amplify": "^6.15.10",
+    "@aws-amplify/ui-react": "^6.14.0",
+    "aws-amplify": "^6.16.2",
     "classnames": "^2.5.1",
-    "react": "^19.2.0",
-    "react-dom": "^19.2.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
     "react-icons": "^5.5.0",
     "react-markdown": "^10.1.0",
     "react-router-dom": "^7.12.0"
@@ -25,8 +25,8 @@
   "devDependencies": {
     "@eslint/js": "^9.39.1",
     "@types/node": "^24.10.1",
-    "@types/react": "^19.2.5",
-    "@types/react-dom": "^19.2.3",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^5.1.1",
     "cypress": "^13.17.0",
     "eslint": "^9.39.1",
