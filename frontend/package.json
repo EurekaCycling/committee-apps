@@ -9,7 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "cy:open": "op run --env-file=op_env -- cypress open --e2e --browser chrome",
-    "cy:run": "op run --env-file=op_env -- cypress run",
+    "cy:run": "NODE_NO_WARNINGS=1 op run --env-file=op_env -- cypress run --headed",
     "cy:video": "op run --env-file=op_env -- cypress run --spec cypress/e2e/walkthrough.cy.ts --no-runner-ui --browser chrome --headed"
   },
   "dependencies": {
