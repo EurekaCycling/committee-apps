@@ -8,6 +8,7 @@ import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
 import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
 import * as s3deploy from 'aws-cdk-lib/aws-s3-deployment';
 import * as acm from 'aws-cdk-lib/aws-certificatemanager';
+import * as iam from 'aws-cdk-lib/aws-iam';
 import * as logs from 'aws-cdk-lib/aws-logs';
 import * as path from 'path';
 
@@ -113,6 +114,17 @@ export class CommitteeAppsStack extends cdk.Stack {
     // --- API Gateway ---
     const certificate = acm.Certificate.fromCertificateArn(this, 'ApiCertificate', certificateArnParam.valueAsString);
 
+    const apiGatewayLogsRole = new iam.Role(this, 'ApiGatewayLogsRole', {
+      assumedBy: new iam.ServicePrincipal('apigateway.amazonaws.com'),
+      managedPolicies: [
+        iam.ManagedPolicy.fromAwsManagedPolicyName('AmazonAPIGatewayPushToCloudWatchLogs'),
+      ],
+    });
+
+    const apiGatewayAccount = new apigateway.CfnAccount(this, 'ApiGatewayAccount', {
+      cloudWatchRoleArn: apiGatewayLogsRole.roleArn,
+    });
+
     const apiLogGroup = new logs.LogGroup(this, 'ApiGatewayAccessLogs', {
       retention: logs.RetentionDays.ONE_MONTH,
     });
@@ -144,6 +156,8 @@ export class CommitteeAppsStack extends cdk.Stack {
         certificate: certificate,
       },
     });
+
+    api.node.addDependency(apiGatewayAccount);
 
     const authorizer = new apigateway.CognitoUserPoolsAuthorizer(this, 'CommitteeAuth', {
       cognitoUserPools: [userPool],
