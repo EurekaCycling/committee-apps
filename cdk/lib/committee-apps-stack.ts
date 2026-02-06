@@ -8,6 +8,7 @@ import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
 import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
 import * as s3deploy from 'aws-cdk-lib/aws-s3-deployment';
 import * as acm from 'aws-cdk-lib/aws-certificatemanager';
+import * as logs from 'aws-cdk-lib/aws-logs';
 import * as path from 'path';
 
 export class CommitteeAppsStack extends cdk.Stack {
@@ -112,6 +113,10 @@ export class CommitteeAppsStack extends cdk.Stack {
     // --- API Gateway ---
     const certificate = acm.Certificate.fromCertificateArn(this, 'ApiCertificate', certificateArnParam.valueAsString);
 
+    const apiLogGroup = new logs.LogGroup(this, 'ApiGatewayAccessLogs', {
+      retention: logs.RetentionDays.ONE_MONTH,
+    });
+
     const api = new apigateway.RestApi(this, 'ServerlessRestApi', {
       restApiName: 'Eureka Committee Apps Backend',
       description: 'Eureka Committee Apps Backend',
@@ -124,6 +129,10 @@ export class CommitteeAppsStack extends cdk.Stack {
       ],
       deployOptions: {
         stageName: 'Prod',
+        loggingLevel: apigateway.MethodLoggingLevel.INFO,
+        dataTraceEnabled: false,
+        accessLogDestination: new apigateway.LogGroupLogDestination(apiLogGroup),
+        accessLogFormat: apigateway.AccessLogFormat.jsonWithStandardFields(),
       },
       defaultCorsPreflightOptions: {
         allowOrigins: ['https://committee.eurekacycling.org.au', 'https://committee2.eurekacycling.org.au'],
