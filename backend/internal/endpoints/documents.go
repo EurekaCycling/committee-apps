@@ -63,8 +63,8 @@ func DocumentsRaw(_ context.Context, request events.APIGatewayProxyRequest, deps
 	}
 
 	return events.APIGatewayProxyResponse{
-		Body:            string(content),
-		IsBase64Encoded: false,
+		Body:            base64.StdEncoding.EncodeToString(content),
+		IsBase64Encoded: true,
 		StatusCode:      200,
 		Headers: map[string]string{
 			"Access-Control-Allow-Origin": "*",

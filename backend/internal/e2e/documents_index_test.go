@@ -148,11 +148,11 @@ func TestDocumentsIndex(t *testing.T) {
 		if err != nil {
 			t.Fatalf("read image preview failed: %v", err)
 		}
+		t.Logf("Image %s first %d bytes:\n%s", resolvedPath, count, formatHexDump(hexPreview))
 		imageType := detectImageTypeFromHex(hexPreview)
 		if imageType == "" {
 			t.Fatalf("image %s does not look like PNG/JPEG/GIF/WEBP", resolvedPath)
 		}
-		t.Logf("Image %s first %d bytes:\n%s", resolvedPath, count, formatHexDump(hexPreview))
 		t.Logf("Image %s detected type: %s", resolvedPath, imageType)
 	}
 }
