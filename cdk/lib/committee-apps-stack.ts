@@ -116,10 +116,20 @@ export class CommitteeAppsStack extends cdk.Stack {
 
     const apiGatewayLogsRole = new iam.Role(this, 'ApiGatewayLogsRole', {
       assumedBy: new iam.ServicePrincipal('apigateway.amazonaws.com'),
-      managedPolicies: [
-        iam.ManagedPolicy.fromAwsManagedPolicyName('AmazonAPIGatewayPushToCloudWatchLogs'),
-      ],
     });
+
+    apiGatewayLogsRole.addToPolicy(new iam.PolicyStatement({
+      actions: [
+        'logs:CreateLogGroup',
+        'logs:CreateLogStream',
+        'logs:DescribeLogGroups',
+        'logs:DescribeLogStreams',
+        'logs:PutLogEvents',
+        'logs:GetLogEvents',
+        'logs:FilterLogEvents',
+      ],
+      resources: ['*'],
+    }));
 
     const apiGatewayAccount = new apigateway.CfnAccount(this, 'ApiGatewayAccount', {
       cloudWatchRoleArn: apiGatewayLogsRole.roleArn,
