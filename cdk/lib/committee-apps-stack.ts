@@ -119,7 +119,7 @@ export class CommitteeAppsStack extends cdk.Stack {
     });
 
     apiGatewayLogsRole.addManagedPolicy(
-      iam.ManagedPolicy.fromAwsManagedPolicyName('AmazonAPIGatewayPushToCloudWatchLogs')
+      iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AmazonAPIGatewayPushToCloudWatchLogs')
     );
 
     apiGatewayLogsRole.addToPolicy(new iam.PolicyStatement({
