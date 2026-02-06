@@ -115,6 +115,13 @@ export class CommitteeAppsStack extends cdk.Stack {
     const api = new apigateway.RestApi(this, 'ServerlessRestApi', {
       restApiName: 'Eureka Committee Apps Backend',
       description: 'Eureka Committee Apps Backend',
+      binaryMediaTypes: [
+        'image/png',
+        'image/jpeg',
+        'image/gif',
+        'image/webp',
+        'application/pdf'
+      ],
       deployOptions: {
         stageName: 'Prod',
       },
