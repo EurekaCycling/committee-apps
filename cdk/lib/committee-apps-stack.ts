@@ -118,6 +118,10 @@ export class CommitteeAppsStack extends cdk.Stack {
       assumedBy: new iam.ServicePrincipal('apigateway.amazonaws.com'),
     });
 
+    apiGatewayLogsRole.addManagedPolicy(
+      iam.ManagedPolicy.fromAwsManagedPolicyName('AmazonAPIGatewayPushToCloudWatchLogs')
+    );
+
     apiGatewayLogsRole.addToPolicy(new iam.PolicyStatement({
       actions: [
         'logs:CreateLogGroup',
@@ -167,7 +171,7 @@ export class CommitteeAppsStack extends cdk.Stack {
       },
     });
 
-    api.node.addDependency(apiGatewayAccount);
+    api.deploymentStage.node.addDependency(apiGatewayAccount);
 
     const authorizer = new apigateway.CognitoUserPoolsAuthorizer(this, 'CommitteeAuth', {
       cognitoUserPools: [userPool],
