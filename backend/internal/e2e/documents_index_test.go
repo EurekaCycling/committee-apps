@@ -148,7 +148,12 @@ func TestDocumentsIndex(t *testing.T) {
 		if err != nil {
 			t.Fatalf("read image preview failed: %v", err)
 		}
+		imageType := detectImageTypeFromHex(hexPreview)
+		if imageType == "" {
+			t.Fatalf("image %s does not look like PNG/JPEG/GIF/WEBP", resolvedPath)
+		}
 		t.Logf("Image %s first %d bytes:\n%s", resolvedPath, count, formatHexDump(hexPreview))
+		t.Logf("Image %s detected type: %s", resolvedPath, imageType)
 	}
 }
 
@@ -566,6 +571,26 @@ func readHexPreview(reader io.Reader, limit int) (string, int, error) {
 		return "", 0, err
 	}
 	return hex.EncodeToString(buffer[:count]), count, nil
+}
+
+func detectImageTypeFromHex(hexString string) string {
+	data, err := hex.DecodeString(hexString)
+	if err != nil || len(data) < 4 {
+		return ""
+	}
+	if len(data) >= 8 && data[0] == 0x89 && data[1] == 0x50 && data[2] == 0x4e && data[3] == 0x47 {
+		return "png"
+	}
+	if data[0] == 0xff && data[1] == 0xd8 && data[2] == 0xff {
+		return "jpeg"
+	}
+	if len(data) >= 6 && data[0] == 0x47 && data[1] == 0x49 && data[2] == 0x46 {
+		return "gif"
+	}
+	if len(data) >= 12 && data[0] == 0x52 && data[1] == 0x49 && data[2] == 0x46 && data[3] == 0x46 && data[8] == 0x57 && data[9] == 0x45 && data[10] == 0x42 && data[11] == 0x50 {
+		return "webp"
+	}
+	return ""
 }
 
 func formatHexDump(hexString string) string {
