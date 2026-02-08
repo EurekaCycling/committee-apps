@@ -198,7 +198,10 @@ export class CommitteeAppsStack extends cdk.Stack {
     });
 
     const rawResource = docsResource.addResource('raw');
-    rawResource.addMethod('GET', new apigateway.LambdaIntegration(helloFunction), {
+    const rawIntegration = new apigateway.LambdaIntegration(helloFunction, {
+      contentHandling: apigateway.ContentHandling.CONVERT_TO_BINARY,
+    });
+    rawResource.addMethod('GET', rawIntegration, {
       authorizationType: apigateway.AuthorizationType.NONE,
     });
 
