@@ -147,11 +147,13 @@ export class CommitteeAppsStack extends cdk.Stack {
       restApiName: 'Eureka Committee Apps Backend',
       description: 'Eureka Committee Apps Backend',
       binaryMediaTypes: [
-        'image/png',
-        'image/jpeg',
+        'application/pdf',
+        'image/apng',
+        'image/avif',
         'image/gif',
+        'image/jpeg',
+        'image/png',
         'image/webp',
-        'application/pdf'
       ],
       deployOptions: {
         stageName: 'Prod',
