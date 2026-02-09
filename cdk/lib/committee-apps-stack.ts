@@ -154,6 +154,7 @@ export class CommitteeAppsStack extends cdk.Stack {
         'image/jpeg',
         'image/png',
         'image/webp',
+        'text/html',
       ],
       deployOptions: {
         stageName: 'Prod',
