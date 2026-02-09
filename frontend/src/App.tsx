@@ -12,7 +12,7 @@ import { Reimbursements } from './pages/Reimbursements';
 import { Documents } from './pages/Documents';
 
 import { useAuth } from './auth-hook';
-import { fetchAppConfig, type AppConfig } from './config';
+import { useAppConfig } from './providers/ConfigProvider';
 import { ProtectedRoute } from './components/ProtectedRoute';
 
 import { usePageTitle } from './hooks/usePageTitle';
@@ -104,27 +104,8 @@ function MainLayout() {
 
 function App() {
   const useMockAuth = import.meta.env.VITE_NO_AUTH === 'true';
-  const [config, setConfig] = useState<AppConfig | null>(null);
-  const [configError, setConfigError] = useState<string | null>(null);
   const [isAmplifyReady, setIsAmplifyReady] = useState(useMockAuth);
-
-  useEffect(() => {
-    let isMounted = true;
-    fetchAppConfig()
-      .then((loadedConfig) => {
-        if (isMounted) {
-          setConfig(loadedConfig);
-        }
-      })
-      .catch((error) => {
-        if (isMounted) {
-          setConfigError(error?.message || 'Unable to load runtime configuration');
-        }
-      });
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+  const { config, error: configError, isLoading: isConfigLoading } = useAppConfig();
 
   useEffect(() => {
     if (!config) {
@@ -147,7 +128,7 @@ function App() {
     );
   }
 
-  if (!config) {
+  if (isConfigLoading || !config) {
     return (
       <div className="page-container">
         <div className="loading">Loading configuration…</div>

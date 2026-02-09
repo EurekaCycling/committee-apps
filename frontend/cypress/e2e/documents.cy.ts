@@ -9,5 +9,6 @@ describe('documents', () => {
     cy.get('button[type="submit"]').click();
     cy.contains('a', 'Documents').click();
     cy.get('.docs-header').should('be.visible');
+    cy.get('img[alt="image"]').should('have.attr', 'src', 'test.png');
   });
 });

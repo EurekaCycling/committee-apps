@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { apiFetch } from '../api';
 import { FaFolder, FaFileAlt, FaEdit, FaChevronLeft, FaSave, FaUpload, FaTimes, FaPlus, FaEye } from 'react-icons/fa';
 import ReactMarkdown from 'react-markdown';
+import { useAppConfig } from '../providers/ConfigProvider';
 import './Documents.css';
 
 interface FileItem {
@@ -45,16 +46,17 @@ const extractH1 = (markdown: string | null): string | null => {
 import { usePageTitle } from '../hooks/usePageTitle';
 
 export function Documents() {
+    const { config } = useAppConfig();
     const [searchParams, setSearchParams] = useSearchParams();
     const currentPath = searchParams.get('path') || '';
+    const currentFile = searchParams.get('file') || '';
 
     // Helper to update path in URL
-    const setCurrentPath = (path: string) => {
-        if (path) {
-            setSearchParams({ path });
-        } else {
-            setSearchParams({});
-        }
+    const setDocumentParams = (path: string, file?: string) => {
+        const params: Record<string, string> = {};
+        if (path) params.path = path;
+        if (file) params.file = file;
+        setSearchParams(params);
     };
 
     const [files, setFiles] = useState<FileItem[]>([]);
@@ -102,8 +104,17 @@ export function Documents() {
         fetchFiles(currentPath);
     }, [currentPath]);
 
+    useEffect(() => {
+        if (!currentFile || files.length === 0) return;
+        const targetPath = currentPath ? `${currentPath}/${currentFile}` : currentFile;
+        const file = files.find(f => f.path === targetPath);
+        if (file && (!editingFile || editingFile.path !== file.path)) {
+            handleEdit(file);
+        }
+    }, [currentFile, currentPath, files, editingFile]);
+
     const navigateTo = (path: string) => {
-        setCurrentPath(path);
+        setDocumentParams(path);
         setEditingFile(null);
         setIndexContent(null);
     };
@@ -115,6 +126,9 @@ export function Documents() {
     };
 
     const handleEdit = async (file: FileItem) => {
+        if (currentFile !== file.name) {
+            setDocumentParams(currentPath, file.name);
+        }
         setLoading(true);
         try {
             const res = await apiFetch(`/documents/view?path=${encodeURIComponent(file.path)}`);
@@ -139,6 +153,7 @@ export function Documents() {
                 body: editContent
             });
             if (!res.ok) throw new Error('Failed to save file');
+            setDocumentParams(currentPath);
             setEditingFile(null);
             fetchFiles(currentPath);
         } catch (err: any) {
@@ -233,8 +248,8 @@ export function Documents() {
 
     const getFileUrl = (file: FileItem) => {
         if (!file.token || !file.expires) return '';
-        const apiBase = import.meta.env.PROD ? 'https://api.committee.eurekacycling.org.au' : 'http://127.0.0.1:3000';
-        return `${apiBase}/documents/raw?path=${encodeURIComponent(file.path)}&token=${file.token}&expires=${file.expires}`;
+        if (!config) return '';
+        return `${config.apiBaseUrl}/documents/raw?path=${encodeURIComponent(file.path)}&token=${file.token}&expires=${file.expires}`;
     };
 
     const handleFileAction = (file: FileItem, mode: 'download' | 'view' = 'download') => {
@@ -362,7 +377,7 @@ export function Documents() {
                 <div className="docs-header">
                     <h2>Editing: {editingFile.name}</h2>
                     <div className="docs-actions">
-                        <button onClick={() => setEditingFile(null)} className="btn-secondary">
+                        <button onClick={() => { setDocumentParams(currentPath); setEditingFile(null); }} className="btn-secondary">
                             <FaTimes /> Cancel
                         </button>
                         <button onClick={handleSave} className="btn-primary" disabled={loading}>
@@ -457,6 +472,25 @@ function FileList({ files, onNavigate, onEdit, onFileAction }: {
     onEdit: (file: FileItem) => void,
     onFileAction: (file: FileItem, mode: 'download' | 'view') => void
 }) {
+    const handleNameClick = (file: FileItem) => {
+        if (file.isDir) {
+            onNavigate(file.path);
+            return;
+        }
+
+        if (file.name.endsWith('.md')) {
+            onEdit(file);
+            return;
+        }
+
+        if (isViewable(file.name)) {
+            onFileAction(file, 'view');
+            return;
+        }
+
+        onFileAction(file, 'download');
+    };
+
     return (
         <div className="file-list card">
             {files.length === 0 && <p className="empty-msg">No files in this directory.</p>}
@@ -474,9 +508,16 @@ function FileList({ files, onNavigate, onEdit, onFileAction }: {
                         .filter(f => f.name.toLowerCase() !== 'index.md')
                         .map(file => (
                             <tr key={file.path}>
-                                <td onClick={() => file.isDir && onNavigate(file.path)} className={file.isDir ? 'clickable' : ''}>
-                                    {file.isDir ? <FaFolder className="icon-folder" /> : <FaFileAlt className="icon-file" />}
-                                    {file.name}
+                                <td>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleNameClick(file)}
+                                        className="btn-link"
+                                        title={file.isDir ? 'Open folder' : file.name.endsWith('.md') ? 'Open in editor' : isViewable(file.name) ? 'Open in new tab' : 'Download'}
+                                    >
+                                        {file.isDir ? <FaFolder className="icon-folder" /> : <FaFileAlt className="icon-file" />}
+                                        {file.name}
+                                    </button>
                                 </td>
                                 <td>{file.isDir ? '-' : formatSize(file.size)}</td>
                                 <td>{file.modTime ? new Date(file.modTime).toLocaleDateString() : '-'}</td>
