@@ -129,3 +129,23 @@ button:focus-visible {
   color: var(--text-primary);
   flex: 1;
 }
+
+@media (max-width: 900px) {
+  [data-amplify-authenticator] {
+    padding: 1.5rem;
+  }
+
+  .page-container {
+    padding: 1.5rem;
+  }
+}
+
+@media (max-width: 640px) {
+  [data-amplify-authenticator] {
+    padding: 1rem;
+  }
+
+  .page-container {
+    padding: 1.25rem 1rem;
+  }
+}
