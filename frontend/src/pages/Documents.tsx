@@ -64,10 +64,14 @@ export function Documents() {
     const [error, setError] = useState<string | null>(null);
     const [editingFile, setEditingFile] = useState<FileItem | null>(null);
     const [editContent, setEditContent] = useState('');
+    const [viewingFile, setViewingFile] = useState<FileItem | null>(null);
+    const [viewContent, setViewContent] = useState('');
     const [indexContent, setIndexContent] = useState<string | null>(null);
 
-    // Set page title: H1 from editor > filename > H1 from index > folder name > "Documents"
-    const title = (editingFile ? (extractH1(editContent) || editingFile.name) : (indexContent ? extractH1(indexContent) : null))
+    // Set page title: H1 from editor > filename > H1 from view > H1 from index > folder name > "Documents"
+    const title = (editingFile ? (extractH1(editContent) || editingFile.name)
+        : viewingFile ? (extractH1(viewContent) || viewingFile.name)
+            : (indexContent ? extractH1(indexContent) : null))
         || (currentPath.split('/').filter(Boolean).pop() || 'Documents');
     usePageTitle(title);
 
@@ -100,22 +104,56 @@ export function Documents() {
         }
     };
 
+    const loadMarkdown = async (file: FileItem) => {
+        const res = await apiFetch(`/documents/view?path=${encodeURIComponent(file.path)}`);
+        if (!res.ok) throw new Error('Failed to load file');
+        const base64 = await res.text();
+        return atob(base64);
+    };
+
     useEffect(() => {
         fetchFiles(currentPath);
     }, [currentPath]);
 
     useEffect(() => {
-        if (!currentFile || files.length === 0) return;
-        const targetPath = currentPath ? `${currentPath}/${currentFile}` : currentFile;
-        const file = files.find(f => f.path === targetPath);
-        if (file && (!editingFile || editingFile.path !== file.path)) {
-            handleEdit(file);
+        if (!currentFile) {
+            setViewingFile(null);
+            setViewContent('');
+            return;
         }
-    }, [currentFile, currentPath, files, editingFile]);
+
+        const targetPath = currentPath ? `${currentPath}/${currentFile}` : currentFile;
+        if (editingFile && editingFile.path === targetPath) {
+            return;
+        }
+        const file = files.find(f => f.path === targetPath) || { name: currentFile, path: targetPath, isDir: false, size: 0, modTime: '' };
+        if (file.isDir || !file.name.endsWith('.md')) {
+            setViewingFile(null);
+            setViewContent('');
+            return;
+        }
+
+        if (!viewingFile || viewingFile.path !== file.path) {
+            setLoading(true);
+            loadMarkdown(file)
+                .then((text) => {
+                    setViewingFile(file);
+                    setViewContent(text);
+                })
+                .catch((err: any) => {
+                    alert(err.message);
+                })
+                .finally(() => {
+                    setLoading(false);
+                });
+        }
+    }, [currentFile, currentPath, files, viewingFile, editingFile]);
 
     const navigateTo = (path: string) => {
         setDocumentParams(path);
         setEditingFile(null);
+        setViewingFile(null);
+        setViewContent('');
         setIndexContent(null);
     };
 
@@ -129,14 +167,30 @@ export function Documents() {
         if (currentFile !== file.name) {
             setDocumentParams(currentPath, file.name);
         }
+        setViewingFile(null);
+        setViewContent('');
         setLoading(true);
         try {
-            const res = await apiFetch(`/documents/view?path=${encodeURIComponent(file.path)}`);
-            if (!res.ok) throw new Error('Failed to load file');
-            const base64 = await res.text();
-            const text = atob(base64);
+            const text = await loadMarkdown(file);
             setEditContent(text);
             setEditingFile(file);
+        } catch (err: any) {
+            alert(err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleView = async (file: FileItem) => {
+        if (currentFile !== file.name) {
+            setDocumentParams(currentPath, file.name);
+        }
+        setEditingFile(null);
+        setLoading(true);
+        try {
+            const text = await loadMarkdown(file);
+            setViewingFile(file);
+            setViewContent(text);
         } catch (err: any) {
             alert(err.message);
         } finally {
@@ -169,20 +223,17 @@ export function Documents() {
 
         setLoading(true);
         try {
-            const reader = new FileReader();
-            reader.onload = async (e) => {
-                const base64Content = (e.target?.result as string).split(',')[1];
-                const uploadPath = currentPath ? `${currentPath}/${file.name}` : file.name;
+            const uploadPath = currentPath ? `${currentPath}/${file.name}` : file.name;
+            const res = await apiFetch(`/documents/upload?path=${encodeURIComponent(uploadPath)}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': file.type || 'application/octet-stream'
+                },
+                body: await file.arrayBuffer()
+            });
 
-                const res = await apiFetch(`/documents/upload?path=${encodeURIComponent(uploadPath)}`, {
-                    method: 'POST',
-                    body: base64Content
-                });
-
-                if (!res.ok) throw new Error('Upload failed');
-                fetchFiles(currentPath);
-            };
-            reader.readAsDataURL(file);
+            if (!res.ok) throw new Error('Upload failed');
+            fetchFiles(currentPath);
         } catch (err: any) {
             alert(err.message);
         } finally {
@@ -203,40 +254,37 @@ export function Documents() {
                     const ext = file.type.split('/')[1] || 'png';
                     const filename = `${crypto.randomUUID()}.${ext}`;
                     const uploadPath = currentPath ? `${currentPath}/${filename}` : filename;
-
-                    const reader = new FileReader();
                     const textarea = e.currentTarget;
                     const start = textarea.selectionStart;
                     const end = textarea.selectionEnd;
 
-                    reader.onload = async (re) => {
-                        const base64Content = (re.target?.result as string).split(',')[1];
-                        const res = await apiFetch(`/documents/upload?path=${encodeURIComponent(uploadPath)}`, {
-                            method: 'POST',
-                            body: base64Content
-                        });
+                    const res = await apiFetch(`/documents/upload?path=${encodeURIComponent(uploadPath)}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': file.type || 'application/octet-stream'
+                        },
+                        body: await file.arrayBuffer()
+                    });
 
-                        if (!res.ok) throw new Error('Upload failed');
+                    if (!res.ok) throw new Error('Upload failed');
 
-                        // Insert markdown at previously captured selection
-                        const text = textarea.value;
-                        const before = text.substring(0, start);
-                        const after = text.substring(end);
-                        const imageMarkdown = `\n![image](${filename})\n`;
-                        const newContent = before + imageMarkdown + after;
+                    // Insert markdown at previously captured selection
+                    const text = textarea.value;
+                    const before = text.substring(0, start);
+                    const after = text.substring(end);
+                    const imageMarkdown = `\n![image](${filename})\n`;
+                    const newContent = before + imageMarkdown + after;
 
-                        setEditContent(newContent);
-                        // Force refresh file list so the new image appears in index if linked
-                        fetchFiles(currentPath);
+                    setEditContent(newContent);
+                    // Force refresh file list so the new image appears in index if linked
+                    fetchFiles(currentPath);
 
-                        // Set cursor position after the inserted markdown (need to do this in next tick)
-                        setTimeout(() => {
-                            textarea.focus();
-                            const newPos = start + imageMarkdown.length;
-                            textarea.setSelectionRange(newPos, newPos);
-                        }, 0);
-                    };
-                    reader.readAsDataURL(file);
+                    // Set cursor position after the inserted markdown (need to do this in next tick)
+                    setTimeout(() => {
+                        textarea.focus();
+                        const newPos = start + imageMarkdown.length;
+                        textarea.setSelectionRange(newPos, newPos);
+                    }, 0);
                 } catch (err: any) {
                     alert(err.message);
                 } finally {
@@ -295,6 +343,8 @@ export function Documents() {
         if (name) {
             const fileName = name.endsWith('.md') ? name : `${name}.md`;
             const path = currentPath ? `${currentPath}/${fileName}` : fileName;
+            setViewingFile(null);
+            setViewContent('');
             setEditingFile({ name: fileName, path, isDir: false, size: 0, modTime: '' });
             setEditContent('# ' + fileName + '\n\nContent here...');
         }
@@ -341,7 +391,7 @@ export function Documents() {
                     if (file.isDir) {
                         navigateTo(file.path);
                     } else if (file.name.endsWith('.md')) {
-                        handleEdit(file);
+                        handleView(file);
                     } else if (isViewable(file.name)) {
                         handleFileAction(file, 'view');
                     } else {
@@ -353,7 +403,7 @@ export function Documents() {
                     } else {
                         const fileName = targetPath.split('/').pop() || '';
                         if (fileName.endsWith('.md')) {
-                            handleEdit({ name: fileName, path: targetPath, isDir: false, size: 0, modTime: '' });
+                            handleView({ name: fileName, path: targetPath, isDir: false, size: 0, modTime: '' });
                         } else if (isViewable(fileName)) {
                             handleFileAction({ name: fileName, path: targetPath, isDir: false, size: 0, modTime: '' }, 'view');
                         } else {
@@ -396,6 +446,32 @@ export function Documents() {
                         <ReactMarkdown components={{ a: MarkdownLink, img: MarkdownImage }}>{editContent}</ReactMarkdown>
                     </div>
                 </div>
+            </div>
+        );
+    }
+
+    if (viewingFile) {
+        return (
+            <div className="page-container">
+                <div className="docs-header">
+                    <h2>{viewingFile.name}</h2>
+                    <div className="docs-actions">
+                        <button onClick={() => handleEdit(viewingFile)} className="btn-secondary">
+                            <FaEdit /> Edit
+                        </button>
+                        <button onClick={() => { setDocumentParams(currentPath); setViewingFile(null); setViewContent(''); }} className="btn-secondary">
+                            <FaTimes /> Close
+                        </button>
+                    </div>
+                </div>
+                {loading && <div className="loading">Loading...</div>}
+                {!loading && (
+                    <div className="docs-content">
+                        <div className="markdown-view card">
+                            <ReactMarkdown components={{ a: MarkdownLink, img: MarkdownImage }}>{viewContent}</ReactMarkdown>
+                        </div>
+                    </div>
+                )}
             </div>
         );
     }
@@ -455,10 +531,10 @@ export function Documents() {
                             <ReactMarkdown components={{ a: MarkdownLink, img: MarkdownImage }}>{indexContent}</ReactMarkdown>
                             <hr />
                             <h4>Directory Listing</h4>
-                            <FileList files={files} onNavigate={navigateTo} onEdit={handleEdit} onFileAction={handleFileAction} />
+                            <FileList files={files} onNavigate={navigateTo} onEdit={handleEdit} onView={handleView} onFileAction={handleFileAction} />
                         </div>
                     ) : (
-                        <FileList files={files} onNavigate={navigateTo} onEdit={handleEdit} onFileAction={handleFileAction} />
+                        <FileList files={files} onNavigate={navigateTo} onEdit={handleEdit} onView={handleView} onFileAction={handleFileAction} />
                     )}
                 </div>
             )}
@@ -466,10 +542,11 @@ export function Documents() {
     );
 }
 
-function FileList({ files, onNavigate, onEdit, onFileAction }: {
+function FileList({ files, onNavigate, onEdit, onView, onFileAction }: {
     files: FileItem[],
     onNavigate: (path: string) => void,
     onEdit: (file: FileItem) => void,
+    onView: (file: FileItem) => void,
     onFileAction: (file: FileItem, mode: 'download' | 'view') => void
 }) {
     const handleNameClick = (file: FileItem) => {
@@ -479,7 +556,7 @@ function FileList({ files, onNavigate, onEdit, onFileAction }: {
         }
 
         if (file.name.endsWith('.md')) {
-            onEdit(file);
+            onView(file);
             return;
         }
 
@@ -513,7 +590,7 @@ function FileList({ files, onNavigate, onEdit, onFileAction }: {
                                         type="button"
                                         onClick={() => handleNameClick(file)}
                                         className="btn-link"
-                                        title={file.isDir ? 'Open folder' : file.name.endsWith('.md') ? 'Open in editor' : isViewable(file.name) ? 'Open in new tab' : 'Download'}
+                                        title={file.isDir ? 'Open folder' : file.name.endsWith('.md') ? 'View' : isViewable(file.name) ? 'Open in new tab' : 'Download'}
                                     >
                                         {file.isDir ? <FaFolder className="icon-folder" /> : <FaFileAlt className="icon-file" />}
                                         {file.name}
