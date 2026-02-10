@@ -12,38 +12,20 @@ import * as iam from 'aws-cdk-lib/aws-iam';
 import * as logs from 'aws-cdk-lib/aws-logs';
 import * as path from 'path';
 
+export interface CommitteeAppsStackProps extends cdk.StackProps {
+  apiDomainName: string;
+  frontendDomainName: string;
+  apiStageName: string;
+  corsOrigins: string[];
+  apiCertificateArn: string;
+  frontendCertificateArn: string;
+  documentsSigningSecret: string;
+  buildNumber: string;
+}
+
 export class CommitteeAppsStack extends cdk.Stack {
-  constructor(scope: Construct, id: string, props?: cdk.StackProps) {
+  constructor(scope: Construct, id: string, props: CommitteeAppsStackProps) {
     super(scope, id, props);
-
-    // --- Parameters ---
-    const domainNameParam = new cdk.CfnParameter(this, 'DomainName', {
-      type: 'String',
-      default: 'api.committee.eurekacycling.org.au',
-      description: 'Custom Domain Name for API',
-    });
-
-    const certificateArnParam = new cdk.CfnParameter(this, 'CertificateArn', {
-      type: 'String',
-      description: 'ARN of the ACM Certificate for API',
-    });
-
-    const frontendCertificateArnParam = new cdk.CfnParameter(this, 'FrontendCertificateArn', {
-      type: 'String',
-      description: 'ARN of the ACM Certificate for Frontend',
-    });
-
-    const signingSecretParam = new cdk.CfnParameter(this, 'DocumentsSigningSecret', {
-      type: 'String',
-      description: 'Secret for signing document URLs',
-      noEcho: true,
-    });
-
-    const buildNumberParam = new cdk.CfnParameter(this, 'BuildNumber', {
-      type: 'String',
-      default: 'dev',
-      description: 'Build number for frontend config version',
-    });
 
     // --- Cognito ---
     const userPool = new cognito.UserPool(this, 'CommitteeUserPool', {
@@ -103,7 +85,7 @@ export class CommitteeAppsStack extends cdk.Stack {
       environment: {
         DOCUMENTS_BUCKET_NAME: documentsBucket.bucketName,
         DATA_BUCKET_NAME: dataBucket.bucketName,
-        DOCUMENTS_SIGNING_SECRET: signingSecretParam.valueAsString,
+        DOCUMENTS_SIGNING_SECRET: props.documentsSigningSecret,
       },
     });
 
@@ -112,7 +94,7 @@ export class CommitteeAppsStack extends cdk.Stack {
     dataBucket.grantReadWrite(helloFunction);
 
     // --- API Gateway ---
-    const certificate = acm.Certificate.fromCertificateArn(this, 'ApiCertificate', certificateArnParam.valueAsString);
+    const certificate = acm.Certificate.fromCertificateArn(this, 'ApiCertificate', props.apiCertificateArn);
 
     const apiGatewayLogsRole = new iam.Role(this, 'ApiGatewayLogsRole', {
       assumedBy: new iam.ServicePrincipal('apigateway.amazonaws.com'),
@@ -157,19 +139,19 @@ export class CommitteeAppsStack extends cdk.Stack {
         'text/html',
       ],
       deployOptions: {
-        stageName: 'Prod',
+        stageName: props.apiStageName,
         loggingLevel: apigateway.MethodLoggingLevel.INFO,
         dataTraceEnabled: false,
         accessLogDestination: new apigateway.LogGroupLogDestination(apiLogGroup),
         accessLogFormat: apigateway.AccessLogFormat.jsonWithStandardFields(),
       },
       defaultCorsPreflightOptions: {
-        allowOrigins: ['https://committee.eurekacycling.org.au', 'https://committee2.eurekacycling.org.au'],
+        allowOrigins: props.corsOrigins,
         allowMethods: apigateway.Cors.ALL_METHODS,
         allowHeaders: ['Content-Type', 'X-Amz-Date', 'Authorization', 'X-Api-Key', 'X-Amz-Security-Token'],
       },
       domainName: {
-        domainName: domainNameParam.valueAsString,
+        domainName: props.apiDomainName,
         certificate: certificate,
       },
     });
@@ -301,7 +283,7 @@ export class CommitteeAppsStack extends cdk.Stack {
       autoDeleteObjects: true,
     });
 
-    const frontendCertificate = acm.Certificate.fromCertificateArn(this, 'FrontendCertificate', frontendCertificateArnParam.valueAsString);
+    const frontendCertificate = acm.Certificate.fromCertificateArn(this, 'FrontendCertificate', props.frontendCertificateArn);
 
     const frontendOrigin = origins.S3BucketOrigin.withOriginAccessControl(frontendBucket);
 
@@ -311,9 +293,7 @@ export class CommitteeAppsStack extends cdk.Stack {
         viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
         allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD_OPTIONS,
       },
-      domainNames: ['committee2.eurekacycling.org.au'], // Hardcoded or Parameter? SAM has param but we fixed it in the template earlier. Using Hardcoded alias for now as per previous context or could check params.
-      // Wait, SAM template used 'Aliases: - committee.eurekacycling.org.au'.
-      // I should probably use a parameter or the hardcoded value.
+      domainNames: [props.frontendDomainName],
       certificate: frontendCertificate,
       defaultRootObject: 'index.html',
       errorResponses: [
@@ -323,12 +303,12 @@ export class CommitteeAppsStack extends cdk.Stack {
     });
 
     const frontendRuntimeConfig = {
-      apiBaseUrl: `https://${domainNameParam.valueAsString}`,
+      apiBaseUrl: `https://${props.apiDomainName}`,
       cognito: {
         userPoolId: userPool.userPoolId,
         userPoolClientId: userPoolClient.userPoolClientId,
       },
-      version: buildNumberParam.valueAsString,
+      version: props.buildNumber,
     };
 
     const frontendRuntimeConfigJson = cdk.Fn.toJsonString(frontendRuntimeConfig);

@@ -2,6 +2,14 @@
 import * as cdk from 'aws-cdk-lib/core';
 import { CommitteeAppsStack } from '../lib/committee-apps-stack';
 
+const requireEnv = (key: string): string => {
+  const value = process.env[key];
+  if (!value) {
+    throw new Error(`Missing required environment variable: ${key}`);
+  }
+  return value;
+};
+
 const app = new cdk.App();
 new CommitteeAppsStack(app, 'CommitteeAppsBackendProd', {
   /* If you don't specify 'env', this stack will be environment-agnostic.
@@ -17,4 +25,26 @@ new CommitteeAppsStack(app, 'CommitteeAppsBackendProd', {
   // env: { account: '123456789012', region: 'us-east-1' },
 
   /* For more information, see https://docs.aws.amazon.com/cdk/latest/guide/environments.html */
+  apiDomainName: 'api.committee.eurekacycling.org.au',
+  frontendDomainName: 'committee2.eurekacycling.org.au',
+  apiStageName: 'Prod',
+  corsOrigins: [
+    'https://committee.eurekacycling.org.au',
+    'https://committee2.eurekacycling.org.au',
+  ],
+  apiCertificateArn: requireEnv('ACM_CERTIFICATE_ARN'),
+  frontendCertificateArn: requireEnv('FRONTEND_CERTIFICATE_ARN'),
+  documentsSigningSecret: requireEnv('DOCUMENTS_SIGNING_SECRET'),
+  buildNumber: 'dev',
+});
+
+new CommitteeAppsStack(app, 'CommitteeAppsBackendTest', {
+  apiDomainName: 'api-test.committee.eurekacycling.org.au',
+  frontendDomainName: 'committee-test.eurekacycling.org.au',
+  apiStageName: 'Test',
+  corsOrigins: ['https://committee-test.eurekacycling.org.au'],
+  apiCertificateArn: requireEnv('TEST_API_CERTIFICATE_ARN'),
+  frontendCertificateArn: requireEnv('TEST_FRONTEND_CERTIFICATE_ARN'),
+  documentsSigningSecret: requireEnv('TEST_DOCUMENTS_SIGNING_SECRET'),
+  buildNumber: 'dev',
 });
