@@ -4,8 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build:sw": "tsc -p tsconfig.sw.json",
+    "dev": "npm run build:sw && vite",
+    "build": "npm run build:sw && tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
     "cy:open": "op run --env-file=op_env -- cypress open --e2e --browser chrome",

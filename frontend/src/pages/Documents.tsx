@@ -295,9 +295,9 @@ export function Documents() {
     };
 
     const getFileUrl = (file: FileItem) => {
-        if (!file.token || !file.expires) return '';
         if (!config) return '';
-        return `${config.apiBaseUrl}/documents/raw?path=${encodeURIComponent(file.path)}&token=${file.token}&expires=${file.expires}`;
+        const encodedPath = encodeURI(file.path);
+        return `/documents/s3/${encodedPath}`;
     };
 
     const handleFileAction = (file: FileItem, mode: 'download' | 'view' = 'download') => {

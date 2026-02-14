@@ -6,6 +6,7 @@ export interface CognitoConfig {
 export interface AppConfig {
     apiBaseUrl: string;
     cognito: CognitoConfig;
+    documentS3Base: string;
 }
 
 const CONFIG_FILE = 'config.json';
@@ -43,7 +44,8 @@ export async function fetchAppConfig(): Promise<AppConfig> {
                     cognito: {
                         userPoolId: normalizeString(cognitoSettings?.userPoolId),
                         userPoolClientId: normalizeString(cognitoSettings?.userPoolClientId)
-                    }
+                    },
+                    documentS3Base: normalizeString(rawConfig.documentS3Base)
                 };
 
                 if (!normalized.apiBaseUrl) {
