@@ -324,6 +324,7 @@ export class CommitteeAppsStack extends cdk.Stack {
 
     const frontendRuntimeConfig = {
       apiBaseUrl: `https://${props.apiDomainName}`,
+      documentS3Base: documentsBucket.bucketWebsiteUrl,
       cognito: {
         userPoolId: userPool.userPoolId,
         userPoolClientId: userPoolClient.userPoolClientId,
