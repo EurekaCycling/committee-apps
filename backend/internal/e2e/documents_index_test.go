@@ -134,7 +134,7 @@ func TestDocumentsIndex(t *testing.T) {
 		downloadUrl := buildRawUrl(config.APIBaseURL, resolvedPath, item.Token, item.Expires)
 		t.Logf("Image download link: %s", downloadUrl)
 
-		resp, err := doAuthGet(ctx, downloadUrl, token)
+		resp, err := doImgGet(ctx, downloadUrl, token)
 		if err != nil {
 			t.Fatalf("fetch image link failed: %v", err)
 		}
@@ -519,6 +519,15 @@ func doAuthGet(ctx context.Context, requestUrl, token string) (*http.Response, e
 		return nil, err
 	}
 	request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+	client := &http.Client{Timeout: 20 * time.Second}
+	return client.Do(request)
+}
+func doImgGet(ctx context.Context, requestUrl, token string) (*http.Response, error) {
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, requestUrl, nil)
+	if err != nil {
+		return nil, err
+	}
+	request.Header.Set("Accept", "image/png")
 	client := &http.Client{Timeout: 20 * time.Second}
 	return client.Do(request)
 }
