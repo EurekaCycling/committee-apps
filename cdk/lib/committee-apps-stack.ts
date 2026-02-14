@@ -200,14 +200,6 @@ export class CommitteeAppsStack extends cdk.Stack {
       authorizationType: apigateway.AuthorizationType.COGNITO,
     });
 
-    const rawResource = docsResource.addResource('raw');
-    const rawIntegration = new apigateway.LambdaIntegration(helloFunction, {
-      contentHandling: apigateway.ContentHandling.CONVERT_TO_BINARY,
-    });
-    rawResource.addMethod('GET', rawIntegration, {
-      authorizationType: apigateway.AuthorizationType.NONE,
-    });
-
     const saveResource = docsResource.addResource('save');
     saveResource.addMethod('POST', new apigateway.LambdaIntegration(helloFunction), {
       authorizer,

@@ -4,15 +4,17 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	pathpkg "path"
+	"strings"
+	"time"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/eureka-cycling/committee-apps/backend/internal/storage"
 )
 
-type DocumentItem struct {
+type DocumentListItem struct {
 	storage.FileItem
-	Token   string `json:"token,omitempty"`
-	Expires int64  `json:"expires,omitempty"`
+	URL string `json:"url,omitempty"`
 }
 
 func DocumentsList(_ context.Context, request events.APIGatewayProxyRequest, deps Dependencies) (events.APIGatewayProxyResponse, error) {
@@ -22,12 +24,23 @@ func DocumentsList(_ context.Context, request events.APIGatewayProxyRequest, dep
 		return errorResponse(err, deps.Headers), nil
 	}
 
-	fileList := []string{}
-	for _, f := range items {
-		fileList = append(fileList, f.Name)
+	responseItems := make([]DocumentListItem, 0, len(items))
+	for _, item := range items {
+		responseItem := DocumentListItem{FileItem: item}
+		if !item.IsDir {
+			ext := strings.ToLower(strings.TrimPrefix(pathpkg.Ext(item.Name), "."))
+			if ext != "md" {
+				url, err := deps.Storage.PresignGet(item.Path, time.Hour)
+				if err != nil {
+					return errorResponse(err, deps.Headers), nil
+				}
+				responseItem.URL = url
+			}
+		}
+		responseItems = append(responseItems, responseItem)
 	}
 
-	body, _ := json.Marshal(items)
+	body, _ := json.Marshal(responseItems)
 	return events.APIGatewayProxyResponse{Body: string(body), StatusCode: 200, Headers: deps.Headers}, nil
 }
 

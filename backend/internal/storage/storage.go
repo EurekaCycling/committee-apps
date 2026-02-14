@@ -17,6 +17,7 @@ type FileItem struct {
 type StorageProvider interface {
 	List(path string) ([]FileItem, error)
 	Get(path string) ([]byte, error)
+	PresignGet(path string, expires time.Duration) (string, error)
 	Save(path string, content []byte) error
 	Mkdir(path string) error
 	Delete(path string) error

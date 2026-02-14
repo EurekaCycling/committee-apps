@@ -4,6 +4,7 @@ import (
 	"context"
 	"io/ioutil"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -84,6 +85,18 @@ func (s *S3StorageProvider) Get(path string) ([]byte, error) {
 	}
 	defer result.Body.Close()
 	return ioutil.ReadAll(result.Body)
+}
+
+func (s *S3StorageProvider) PresignGet(path string, expires time.Duration) (string, error) {
+	presigner := s3.NewPresignClient(s.Client)
+	result, err := presigner.PresignGetObject(context.TODO(), &s3.GetObjectInput{
+		Bucket: aws.String(s.Bucket),
+		Key:    aws.String(path),
+	}, s3.WithPresignExpires(expires))
+	if err != nil {
+		return "", err
+	}
+	return result.URL, nil
 }
 
 func (s *S3StorageProvider) Save(path string, content []byte) error {
