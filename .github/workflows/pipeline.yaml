@@ -23,8 +23,10 @@ jobs:
             infra:
               - 'cdk/**'
               - 'backend/**'
+              - '.github/**'
             frontend:
               - 'frontend/**'
+              - '.github/**'
 
   # Deploy infrastructure and backend when relevant files change
   deploy-infra:
@@ -72,7 +74,7 @@ jobs:
         env:
           ACM_CERTIFICATE_ARN: ${{ secrets.ACM_CERTIFICATE_ARN }}
           FRONTEND_CERTIFICATE_ARN: ${{ secrets.FRONTEND_CERTIFICATE_ARN }}
-          TEST_ACM_CERTIFICATE_ARN: ${{ secrets.TEST_API_CERTIFICATE_ARN }}
+          TEST_API_CERTIFICATE_ARN: ${{ secrets.TEST_API_CERTIFICATE_ARN }}
           TEST_FRONTEND_CERTIFICATE_ARN: ${{ secrets.TEST_FRONTEND_CERTIFICATE_ARN }}
         run: |
           npx cdk deploy CommitteeAppsBackendProd --require-approval never
