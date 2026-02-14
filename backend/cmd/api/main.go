@@ -17,10 +17,6 @@ var (
 var signingSecret string
 
 func init() {
-	signingSecret = os.Getenv("DOCUMENTS_SIGNING_SECRET")
-	if signingSecret == "" {
-		signingSecret = "default-development-secret"
-	}
 	bucketName := os.Getenv("DOCUMENTS_BUCKET_NAME")
 	prov, err := storage.NewS3StorageProvider(context.Background(), bucketName)
 	if err != nil {
@@ -44,10 +40,8 @@ var routes = map[string]route{
 	"GET:/hello":                     {handler: endpoints.Hello},
 	"GET:/documents/list":            {handler: endpoints.DocumentsList},
 	"GET:/documents/credentials":     {handler: endpoints.DocumentsCredentials},
-	"GET:/documents/raw":             {handler: endpoints.DocumentsRaw},
 	"GET:/documents/view":            {handler: endpoints.DocumentsView},
 	"POST:/documents/save":           {handler: endpoints.DocumentsSave},
-	"POST:/documents/upload":         {handler: endpoints.DocumentsUpload},
 	"POST:/documents/mkdir":          {handler: endpoints.DocumentsMkdir},
 	"GET:/ledger":                    {handler: endpoints.LedgerGet},
 	"GET:/ledger/pdf":                {handler: endpoints.LedgerPdf},

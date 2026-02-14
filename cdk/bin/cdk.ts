@@ -34,7 +34,6 @@ new CommitteeAppsStack(app, 'CommitteeAppsBackendProd', {
   ],
   apiCertificateArn: requireEnv('ACM_CERTIFICATE_ARN'),
   frontendCertificateArn: requireEnv('FRONTEND_CERTIFICATE_ARN'),
-  documentsSigningSecret: requireEnv('DOCUMENTS_SIGNING_SECRET'),
   buildNumber: 'dev',
 });
 
@@ -45,6 +44,5 @@ new CommitteeAppsStack(app, 'CommitteeAppsBackendTest', {
   corsOrigins: ['https://committee-test.eurekacycling.org.au'],
   apiCertificateArn: requireEnv('TEST_API_CERTIFICATE_ARN'),
   frontendCertificateArn: requireEnv('TEST_FRONTEND_CERTIFICATE_ARN'),
-  documentsSigningSecret: requireEnv('TEST_DOCUMENTS_SIGNING_SECRET'),
   buildNumber: 'dev',
 });

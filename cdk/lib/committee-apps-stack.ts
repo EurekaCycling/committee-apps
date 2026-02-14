@@ -19,7 +19,6 @@ export interface CommitteeAppsStackProps extends cdk.StackProps {
   corsOrigins: string[];
   apiCertificateArn: string;
   frontendCertificateArn: string;
-  documentsSigningSecret: string;
   buildNumber: string;
 }
 
@@ -85,7 +84,6 @@ export class CommitteeAppsStack extends cdk.Stack {
       environment: {
         DOCUMENTS_BUCKET_NAME: documentsBucket.bucketName,
         DATA_BUCKET_NAME: dataBucket.bucketName,
-        DOCUMENTS_SIGNING_SECRET: props.documentsSigningSecret,
       },
     });
 

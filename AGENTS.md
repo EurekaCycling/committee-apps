@@ -29,7 +29,6 @@ Root (SAM)
 
 Runtime configuration (reference only)
 - Backend expects `DOCUMENTS_BUCKET_NAME`, `DATA_BUCKET_NAME`.
-- Backend reads `DOCUMENTS_SIGNING_SECRET` (falls back to a dev default).
 - Frontend uses `VITE_NO_AUTH=true` to bypass auth for local mocking.
 
 Backend (Go)
