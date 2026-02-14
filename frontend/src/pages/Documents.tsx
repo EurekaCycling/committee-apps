@@ -198,15 +198,25 @@ export function Documents() {
         }
     };
 
+    const putToS3 = async (path: string, body: BodyInit, contentType: string) => {
+        const s3Url = `/documents/s3/${encodeURI(path)}`;
+        const res = await fetch(s3Url, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': contentType
+            },
+            body
+        });
+        if (!res.ok) {
+            throw new Error(`S3 write failed (${res.status})`);
+        }
+    };
+
     const handleSave = async () => {
         if (!editingFile) return;
         setLoading(true);
         try {
-            const res = await apiFetch(`/documents/save?path=${encodeURIComponent(editingFile.path)}`, {
-                method: 'POST',
-                body: editContent
-            });
-            if (!res.ok) throw new Error('Failed to save file');
+            await putToS3(editingFile.path, editContent, 'text/markdown');
             setDocumentParams(currentPath);
             setEditingFile(null);
             fetchFiles(currentPath);
@@ -224,15 +234,7 @@ export function Documents() {
         setLoading(true);
         try {
             const uploadPath = currentPath ? `${currentPath}/${file.name}` : file.name;
-            const res = await apiFetch(`/documents/upload?path=${encodeURIComponent(uploadPath)}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': file.type || 'application/octet-stream'
-                },
-                body: await file.arrayBuffer()
-            });
-
-            if (!res.ok) throw new Error('Upload failed');
+            await putToS3(uploadPath, await file.arrayBuffer(), file.type || 'application/octet-stream');
             fetchFiles(currentPath);
         } catch (err: any) {
             alert(err.message);
@@ -258,15 +260,7 @@ export function Documents() {
                     const start = textarea.selectionStart;
                     const end = textarea.selectionEnd;
 
-                    const res = await apiFetch(`/documents/upload?path=${encodeURIComponent(uploadPath)}`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': file.type || 'application/octet-stream'
-                        },
-                        body: await file.arrayBuffer()
-                    });
-
-                    if (!res.ok) throw new Error('Upload failed');
+                    await putToS3(uploadPath, await file.arrayBuffer(), file.type || 'application/octet-stream');
 
                     // Insert markdown at previously captured selection
                     const text = textarea.value;
