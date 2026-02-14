@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/eureka-cycling/committee-apps/backend/internal/storage"
@@ -13,6 +14,10 @@ import (
 
 type memoryStorage struct {
 	items map[string][]byte
+}
+
+func (m *memoryStorage) PresignGet(path string, expires time.Duration) (string, error) {
+	return path, nil
 }
 
 func newMemoryStorage() *memoryStorage {
