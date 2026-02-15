@@ -39,7 +39,7 @@ type route struct {
 var routes = map[string]route{
 	"GET:/hello":                     {handler: endpoints.Hello},
 	"GET:/documents/list":            {handler: endpoints.DocumentsList},
-	"GET:/documents/credentials":     {handler: endpoints.DocumentsCredentials},
+	"GET:/documents/upload/presign":  {handler: endpoints.DocumentsUploadPresign},
 	"GET:/documents/view":            {handler: endpoints.DocumentsView},
 	"POST:/documents/save":           {handler: endpoints.DocumentsSave},
 	"POST:/documents/mkdir":          {handler: endpoints.DocumentsMkdir},

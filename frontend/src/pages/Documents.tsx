@@ -201,11 +201,16 @@ export function Documents() {
     };
 
     const putToS3 = async (path: string, body: BodyInit, contentType: string) => {
-        const s3Url = `/documents/s3/${encodeURI(path)}`;
-        const res = await fetch(s3Url, {
+        const resolvedContentType = contentType || 'application/octet-stream';
+        const presignRes = await apiFetch(`/documents/upload/presign?path=${encodeURIComponent(path)}&contentType=${encodeURIComponent(resolvedContentType)}`);
+        if (!presignRes.ok) {
+            throw new Error('Failed to get upload URL');
+        }
+        const presignData = await presignRes.json() as { url: string };
+        const res = await fetch(presignData.url, {
             method: 'PUT',
             headers: {
-                'Content-Type': contentType
+                'Content-Type': resolvedContentType
             },
             body
         });

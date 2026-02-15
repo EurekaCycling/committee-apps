@@ -17,6 +17,12 @@ type DocumentListItem struct {
 	URL string `json:"url,omitempty"`
 }
 
+type documentsUploadPresignResponse struct {
+	URL              string `json:"url"`
+	ContentType      string `json:"contentType"`
+	ExpiresInSeconds int64  `json:"expiresInSeconds"`
+}
+
 func DocumentsList(_ context.Context, request events.APIGatewayProxyRequest, deps Dependencies) (events.APIGatewayProxyResponse, error) {
 	path := request.QueryStringParameters["path"]
 	items, err := deps.Storage.List(path)
@@ -77,4 +83,30 @@ func DocumentsMkdir(_ context.Context, request events.APIGatewayProxyRequest, de
 		return errorResponse(err, deps.Headers), nil
 	}
 	return events.APIGatewayProxyResponse{Body: `{"status":"ok"}`, StatusCode: 200, Headers: deps.Headers}, nil
+}
+
+func DocumentsUploadPresign(_ context.Context, request events.APIGatewayProxyRequest, deps Dependencies) (events.APIGatewayProxyResponse, error) {
+	path := request.QueryStringParameters["path"]
+	if path == "" {
+		return events.APIGatewayProxyResponse{Body: `{"error": "Path is required"}`, StatusCode: 400, Headers: deps.Headers}, nil
+	}
+
+	contentType := request.QueryStringParameters["contentType"]
+	if contentType == "" {
+		contentType = getMimeType(path)
+	}
+
+	expires := 15 * time.Minute
+	url, err := deps.Storage.PresignPut(path, contentType, expires)
+	if err != nil {
+		return errorResponse(err, deps.Headers), nil
+	}
+
+	response := documentsUploadPresignResponse{
+		URL:              url,
+		ContentType:      contentType,
+		ExpiresInSeconds: int64(expires.Seconds()),
+	}
+	body, _ := json.Marshal(response)
+	return events.APIGatewayProxyResponse{Body: string(body), StatusCode: 200, Headers: deps.Headers}, nil
 }

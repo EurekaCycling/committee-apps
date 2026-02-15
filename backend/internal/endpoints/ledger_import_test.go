@@ -16,6 +16,10 @@ type memoryStorage struct {
 	items map[string][]byte
 }
 
+func (m *memoryStorage) PresignPut(path string, contentType string, expires time.Duration) (string, error) {
+	return path, nil
+}
+
 func (m *memoryStorage) PresignGet(path string, expires time.Duration) (string, error) {
 	return path, nil
 }

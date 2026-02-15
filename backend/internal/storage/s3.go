@@ -99,6 +99,23 @@ func (s *S3StorageProvider) PresignGet(path string, expires time.Duration) (stri
 	return result.URL, nil
 }
 
+func (s *S3StorageProvider) PresignPut(path string, contentType string, expires time.Duration) (string, error) {
+	input := &s3.PutObjectInput{
+		Bucket: aws.String(s.Bucket),
+		Key:    aws.String(path),
+	}
+	if contentType != "" {
+		input.ContentType = aws.String(contentType)
+	}
+
+	presigner := s3.NewPresignClient(s.Client)
+	result, err := presigner.PresignPutObject(context.TODO(), input, s3.WithPresignExpires(expires))
+	if err != nil {
+		return "", err
+	}
+	return result.URL, nil
+}
+
 func (s *S3StorageProvider) Save(path string, content []byte) error {
 	_, err := s.Client.PutObject(context.TODO(), &s3.PutObjectInput{
 		Bucket: aws.String(s.Bucket),

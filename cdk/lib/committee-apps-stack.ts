@@ -87,20 +87,6 @@ export class CommitteeAppsStack extends cdk.Stack {
       },
     });
 
-    const documentsAccessRole = new iam.Role(this, 'DocumentsAccessRole', {
-      assumedBy: new iam.ArnPrincipal(helloFunction.role!.roleArn),
-    });
-
-    documentsBucket.grantReadWrite(documentsAccessRole);
-
-    helloFunction.addToRolePolicy(new iam.PolicyStatement({
-      actions: ['sts:AssumeRole'],
-      resources: [documentsAccessRole.roleArn],
-    }));
-
-    helloFunction.addEnvironment('DOCUMENTS_ASSUME_ROLE_ARN', documentsAccessRole.roleArn);
-    helloFunction.addEnvironment('DOCUMENTS_CREDENTIALS_DURATION_SECONDS', '900');
-
     // Grant permissions
     documentsBucket.grantReadWrite(helloFunction);
     dataBucket.grantReadWrite(helloFunction);
@@ -188,12 +174,6 @@ export class CommitteeAppsStack extends cdk.Stack {
       authorizationType: apigateway.AuthorizationType.COGNITO,
     });
 
-    const credentialsResource = docsResource.addResource('credentials');
-    credentialsResource.addMethod('GET', new apigateway.LambdaIntegration(helloFunction), {
-      authorizer,
-      authorizationType: apigateway.AuthorizationType.COGNITO,
-    });
-
     const viewResource = docsResource.addResource('view');
     viewResource.addMethod('GET', new apigateway.LambdaIntegration(helloFunction), {
       authorizer,
@@ -208,6 +188,12 @@ export class CommitteeAppsStack extends cdk.Stack {
 
     const uploadResource = docsResource.addResource('upload');
     uploadResource.addMethod('POST', new apigateway.LambdaIntegration(helloFunction), {
+      authorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO,
+    });
+
+    const uploadPresignResource = uploadResource.addResource('presign');
+    uploadPresignResource.addMethod('GET', new apigateway.LambdaIntegration(helloFunction), {
       authorizer,
       authorizationType: apigateway.AuthorizationType.COGNITO,
     });
