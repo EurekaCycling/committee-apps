@@ -1,7 +1,7 @@
 import {FaEdit, FaEye, FaFileAlt, FaUpload} from "react-icons/fa";
 
 interface FileItem {
-    url: string;
+    url?: string;
     name: string;
     path: string;
     isDir: boolean;
