@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { FaFolder, FaEdit, FaChevronLeft, FaSave, FaUpload, FaTimes, FaPlus } from 'react-icons/fa';
+import { FaEdit, FaChevronLeft, FaSave, FaUpload, FaTimes, FaPlus } from 'react-icons/fa';
 import { apiFetch } from '../api';
 import { FileList } from '../components/FileList/List.tsx';
 import { MarkdownEditor } from '../components/MarkdownEditor';
@@ -68,9 +68,12 @@ function DocumentsContent() {
     const [loading, setLoading] = useState(false);
     const [editingFile, setEditingFile] = useState<FileItem | null>(null);
     const [editContent, setEditContent] = useState('');
+    const [isNewPage, setIsNewPage] = useState(false);
+    const [newPageName, setNewPageName] = useState('');
     const [viewingFile, setViewingFile] = useState<FileItem | null>(null);
     const [viewContent, setViewContent] = useState('');
     const isLoading = loading || fileListLoading;
+    const newPageInputRef = useRef<HTMLInputElement>(null);
 
     // Set page title: H1 from editor > filename > H1 from view > H1 from index > folder name > "Documents"
     const title = (editingFile ? (extractH1(editContent) || editingFile.name)
@@ -89,6 +92,12 @@ function DocumentsContent() {
     useEffect(() => {
         fetchFiles(currentPath);
     }, [currentPath, fetchFiles]);
+
+    useEffect(() => {
+        if (!isNewPage || !newPageInputRef.current) return;
+        newPageInputRef.current.focus();
+        newPageInputRef.current.select();
+    }, [isNewPage]);
 
 
     useEffect(() => {
@@ -128,6 +137,8 @@ function DocumentsContent() {
     const navigateTo = (path: string) => {
         setDocumentParams(path);
         setEditingFile(null);
+        setIsNewPage(false);
+        setNewPageName('');
         setViewingFile(null);
         setViewContent('');
     };
@@ -194,11 +205,25 @@ function DocumentsContent() {
 
     const handleSave = async () => {
         if (!editingFile) return;
+        let savePath = editingFile.path;
+        if (isNewPage) {
+            const trimmedName = newPageName.trim();
+            if (!trimmedName) {
+                alert('Please enter a filename.');
+                newPageInputRef.current?.focus();
+                newPageInputRef.current?.select();
+                return;
+            }
+            const resolvedName = trimmedName.endsWith('.md') ? trimmedName : `${trimmedName}.md`;
+            savePath = joinPath(currentPath, resolvedName);
+        }
         setLoading(true);
         try {
-            await putToS3(editingFile.path, editContent, 'text/markdown');
+            await putToS3(savePath, editContent, 'text/markdown');
             setDocumentParams(currentPath);
             setEditingFile(null);
+            setIsNewPage(false);
+            setNewPageName('');
             fetchFiles(currentPath);
         } catch (err: any) {
             alert(err.message);
@@ -293,44 +318,87 @@ function DocumentsContent() {
         }
     };
 
-    const createFolder = async () => {
-        const name = prompt('Enter folder name:');
-        if (name) {
-            const path = joinPath(currentPath, name);
-            setLoading(true);
-            try {
-                const res = await apiFetch(`/documents/mkdir?path=${encodeURIComponent(path)}`, {
-                    method: 'POST'
-                });
-                if (!res.ok) throw new Error('Failed to create folder');
-                fetchFiles(currentPath);
-            } catch (err: any) {
-                alert(err.message);
-            } finally {
-                setLoading(false);
-            }
+    const createFolder = async (name: string): Promise<boolean> => {
+        const trimmedName = name.trim();
+        if (!trimmedName) return false;
+        const path = joinPath(currentPath, trimmedName);
+        setLoading(true);
+        try {
+            const res = await apiFetch(`/documents/mkdir?path=${encodeURIComponent(path)}`, {
+                method: 'POST'
+            });
+            if (!res.ok) throw new Error('Failed to create folder');
+            fetchFiles(currentPath);
+            return true;
+        } catch (err: any) {
+            alert(err.message);
+            return false;
+        } finally {
+            setLoading(false);
         }
     };
 
     const createMarkdown = () => {
-        const name = prompt('Enter filename (e.g. notes.md):');
-        if (name) {
-            const fileName = name.endsWith('.md') ? name : `${name}.md`;
-            const path = joinPath(currentPath, fileName);
-            setViewingFile(null);
-            setViewContent('');
-            setEditingFile({ name: fileName, path, isDir: false, size: 0, modTime: '' });
-            setEditContent('# ' + fileName + '\n\nContent here...');
-        }
+        setDocumentParams(currentPath);
+        setViewingFile(null);
+        setViewContent('');
+        setIsNewPage(true);
+        setNewPageName('');
+        setEditingFile({ name: 'untitled.md', path: joinPath(currentPath, 'untitled.md'), isDir: false, size: 0, modTime: '' });
+        setEditContent('# New Page\n\nContent here...');
     };
+
+    const renderBreadcrumbs = () => (
+        <div className="docs-breadcrumb">
+            <button onClick={() => navigateTo('')} className="btn-link">Documents</button>
+            {currentPath.split('/').filter(Boolean).map((part, i, arr) => (
+                <span key={i}>
+                    {' / '}
+                    <button
+                        onClick={() => navigateTo(arr.slice(0, i + 1).join('/'))}
+                        className="btn-link"
+                    >
+                        {part}
+                    </button>
+                </span>
+            ))}
+            {isNewPage && (
+                <span>
+                    {' / '}
+                    <input
+                        ref={newPageInputRef}
+                        type="text"
+                        value={newPageName}
+                        onChange={(event) => setNewPageName(event.target.value)}
+                        onKeyDown={(event) => {
+                            if (event.key === 'Enter') {
+                                event.preventDefault();
+                                handleSave();
+                            }
+                            if (event.key === 'Escape') {
+                                event.preventDefault();
+                                setDocumentParams(currentPath);
+                                setEditingFile(null);
+                                setIsNewPage(false);
+                                setNewPageName('');
+                            }
+                        }}
+                        placeholder="Untitled"
+                        aria-label="New page filename"
+                    />
+                </span>
+            )}
+        </div>
+    );
 
     if (editingFile) {
         return (
             <div className="page-container">
                 <div className="docs-header">
-                    <h2>Editing: {editingFile.name}</h2>
+                    {renderBreadcrumbs()}
+                    <h2>Editing: {isNewPage ? (newPageName || 'Untitled') : editingFile.name}</h2>
                     <div className="docs-actions">
-                        <button onClick={() => { setDocumentParams(currentPath); setEditingFile(null); }} className="btn-secondary">
+                        <button onClick={() => { setDocumentParams(currentPath); setEditingFile(null); setIsNewPage(false); setNewPageName(''); }} className="btn-secondary">
                             <FaTimes /> Cancel
                         </button>
                         <button onClick={handleSave} className="btn-primary" disabled={isLoading}>
@@ -360,6 +428,7 @@ function DocumentsContent() {
         return (
             <div className="page-container">
                 <div className="docs-header">
+                    {renderBreadcrumbs()}
                     <h2>{viewingFile.name}</h2>
                     <div className="docs-actions">
                         <button onClick={() => handleEdit(viewingFile)} className="btn-secondary">
@@ -394,26 +463,10 @@ function DocumentsContent() {
     return (
         <div className="page-container">
             <div className="docs-header">
-                <div className="docs-breadcrumb">
-                    <button onClick={() => navigateTo('')} className="btn-link">Documents</button>
-                    {currentPath.split('/').filter(Boolean).map((part, i, arr) => (
-                        <span key={i}>
-                            {' / '}
-                            <button
-                                onClick={() => navigateTo(arr.slice(0, i + 1).join('/'))}
-                                className="btn-link"
-                            >
-                                {part}
-                            </button>
-                        </span>
-                    ))}
-                </div>
+                {renderBreadcrumbs()}
                 <div className="docs-actions">
-                    <button onClick={createFolder} className="btn-outline">
-                        <FaFolder /> New Folder
-                    </button>
                     <button onClick={createMarkdown} className="btn-outline">
-                        <FaPlus /> New MD
+                        <FaPlus /> New Page
                     </button>
                     <label className="btn-primary upload-label">
                         <FaUpload /> Upload
@@ -454,11 +507,11 @@ function DocumentsContent() {
                                 isViewable={isViewable}
                             />
                             <hr />
-                            <h4>Directory Listing</h4>
                             <FileList
                                 files={files}
                                 onNavigate={navigateTo}
                                 onView={handleView}
+                                onCreateFolder={createFolder}
                             />
                         </div>
                     ) : (
@@ -466,6 +519,7 @@ function DocumentsContent() {
                             files={files}
                             onNavigate={navigateTo}
                             onView={handleView}
+                            onCreateFolder={createFolder}
                         />
                     )}
                 </div>

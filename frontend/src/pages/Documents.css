@@ -10,6 +10,16 @@
     font-weight: 500;
 }
 
+.docs-breadcrumb input {
+    padding: 0.3rem 0.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    font: inherit;
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    width: 180px;
+}
+
 .btn-link {
     background: none;
     border: none;
@@ -33,6 +43,29 @@
 .file-list table {
     width: 100%;
     border-collapse: collapse;
+}
+
+.file-list-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
+}
+
+.file-list-header h4 {
+    margin: 0;
+}
+
+.file-list-new-folder input {
+    padding: 0.4rem 0.6rem;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    font: inherit;
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    width: 100%;
+    max-width: 320px;
 }
 
 .file-list th,

@@ -1,4 +1,5 @@
-import {FaFileAlt} from "react-icons/fa";
+import { useEffect, useRef, useState } from 'react';
+import { FaFileAlt, FaFolder } from 'react-icons/fa';
 
 interface FileItem {
     url?: string;
@@ -15,6 +16,7 @@ interface FileListProps {
     files: FileItem[];
     onNavigate: (path: string) => void;
     onView: (file: FileItem) => void;
+    onCreateFolder: (name: string) => Promise<boolean>;
 }
 
 interface ItemProps {
@@ -57,13 +59,51 @@ function Item({ file, onNavigate, onView }: ItemProps) {
 }
 
 export function FileList({
-                              files,
-                              onNavigate,
-                              onView
-                          }: FileListProps) {
+                               files,
+                               onNavigate,
+                               onView,
+                               onCreateFolder
+                           }: FileListProps) {
+    const [isCreating, setIsCreating] = useState(false);
+    const [newFolderName, setNewFolderName] = useState('');
+    const inputRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        if (!isCreating || !inputRef.current) return;
+        inputRef.current.focus();
+        inputRef.current.select();
+    }, [isCreating]);
+
+    const cancelCreate = () => {
+        setIsCreating(false);
+        setNewFolderName('');
+    };
+
+    const submitCreate = async () => {
+        const trimmedName = newFolderName.trim();
+        if (!trimmedName) return;
+        const created = await onCreateFolder(trimmedName);
+        if (created) {
+            cancelCreate();
+        }
+    };
 
     return (
         <div className="file-list card">
+            <div className="file-list-header">
+                <h4>Directory Listing</h4>
+                <button
+                    type="button"
+                    className="btn-outline"
+                    onClick={() => {
+                        setIsCreating(true);
+                        setNewFolderName('New Folder');
+                    }}
+                >
+                    <FaFolder /> New Folder
+                </button>
+            </div>
+
             {files.length === 0 && <p className="empty-msg">No files in this directory.</p>}
             <table>
                 <thead>
@@ -74,6 +114,32 @@ export function FileList({
                 </tr>
                 </thead>
                 <tbody>
+                {isCreating && (
+                    <tr className="file-list-new-folder">
+                        <td>
+                            <FaFolder className="icon-file" />
+                            <input
+                                ref={inputRef}
+                                type="text"
+                                value={newFolderName}
+                                onChange={(event) => setNewFolderName(event.target.value)}
+                                onKeyDown={(event) => {
+                                    if (event.key === 'Enter') {
+                                        event.preventDefault();
+                                        submitCreate();
+                                    }
+                                    if (event.key === 'Escape') {
+                                        event.preventDefault();
+                                        cancelCreate();
+                                    }
+                                }}
+                                aria-label="New folder name"
+                            />
+                        </td>
+                        <td>-</td>
+                        <td>-</td>
+                    </tr>
+                )}
                 {files.sort((a, b) => (a.isDir === b.isDir ? a.name.localeCompare(b.name) : a.isDir ? -1 : 1))
                     .filter(f => f.name.toLowerCase() !== 'index.md')
                     .map(file => (
