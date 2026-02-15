@@ -487,3 +487,144 @@
         height: 140px;
     }
 }
+
+@media print {
+    @page {
+        size: A4;
+        margin: 14mm 12mm 16mm;
+    }
+
+    :root {
+        color-scheme: only light;
+    }
+
+    body {
+        background: #ffffff;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    .navbar,
+    .nav-actions,
+    .nav-toggle,
+    .nav-links {
+        display: none !important;
+    }
+
+    .reports-page {
+        padding: 0;
+        color: #0f2f2b;
+    }
+
+    .reports-shell {
+        padding: 1.25rem;
+        border-radius: 18px;
+        background: #f7f5ef;
+        box-shadow: none;
+        border: 1px solid rgba(15, 47, 43, 0.12);
+    }
+
+    .reports-shell::before {
+        display: none;
+    }
+
+    .reports-hero,
+    .reports-controls,
+    .reports-chart,
+    .report-panel,
+    .reports-notes {
+        animation: none;
+    }
+
+    .reports-hero {
+        gap: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .reports-metrics {
+        grid-template-columns: repeat(2, minmax(140px, 1fr));
+        gap: 0.75rem;
+    }
+
+    .metric-card,
+    .reports-controls,
+    .reports-chart,
+    .report-panel,
+    .reports-notes {
+        box-shadow: none;
+        border-color: rgba(15, 47, 43, 0.12);
+        background: #ffffff;
+    }
+
+    .reports-controls {
+        padding: 1.1rem 1.25rem;
+        margin-bottom: 1.25rem;
+    }
+
+    .period-pill {
+        background: #ffffff;
+        border-color: rgba(15, 47, 43, 0.25);
+    }
+
+    .period-pill.active {
+        box-shadow: none;
+    }
+
+    .reports-chart {
+        padding: 1.25rem;
+        margin-bottom: 1.25rem;
+    }
+
+    .chart-panel {
+        background: #fbfaf7;
+    }
+
+    .chart-grid {
+        min-height: 160px;
+        grid-template-columns: repeat(12, minmax(0, 1fr));
+    }
+
+    .chart-bars {
+        height: 120px;
+    }
+
+    .reports-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.25rem;
+    }
+
+    .report-panel {
+        padding: 1.25rem;
+        gap: 1.1rem;
+    }
+
+    .report-row {
+        font-size: 0.9rem;
+    }
+
+    .reports-notes {
+        padding: 1.25rem;
+    }
+
+    .notes-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 0.75rem;
+    }
+
+    .note-card {
+        background: #fbfaf7;
+        box-shadow: none;
+    }
+
+    .reports-controls,
+    .reports-chart,
+    .report-panel,
+    .reports-notes,
+    .note-card,
+    .chart-panel,
+    .metric-card {
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
+}
