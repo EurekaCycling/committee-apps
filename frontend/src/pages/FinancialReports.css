@@ -184,6 +184,96 @@
     margin-bottom: 2rem;
 }
 
+.reports-chart {
+    position: relative;
+    z-index: 1;
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 22px;
+    padding: 1.75rem;
+    border: 1px solid rgba(15, 47, 43, 0.12);
+    box-shadow: 0 18px 30px rgba(15, 47, 43, 0.08);
+    margin-bottom: 2rem;
+    display: grid;
+    gap: 1.25rem;
+    animation: fade-rise 0.8s ease-out 0.2s both;
+}
+
+.chart-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem 1.5rem;
+    align-items: center;
+    font-size: 0.9rem;
+    color: #39544f;
+    font-weight: 600;
+}
+
+.legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.legend-item::before {
+    content: '';
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #2c5a54;
+}
+
+.legend-item.cash::before {
+    background: #c69152;
+}
+
+.chart-note {
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: #5b6f68;
+}
+
+.chart-grid {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: 0.6rem;
+    align-items: end;
+    min-height: 220px;
+}
+
+.chart-column {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.55rem;
+}
+
+.chart-bars {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: end;
+    gap: 0.25rem;
+    height: 180px;
+}
+
+.chart-bar {
+    border-radius: 10px 10px 4px 4px;
+    background: #2c5a54;
+    transition: height 0.4s ease;
+    min-height: 0;
+}
+
+.chart-bar.cash {
+    background: #c69152;
+}
+
+.chart-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #5b6f68;
+}
+
 .report-panel {
     background: rgba(255, 255, 255, 0.92);
     border-radius: 20px;
@@ -342,6 +432,11 @@
         width: 100%;
         grid-template-columns: 1fr;
     }
+
+    .chart-grid {
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+        row-gap: 1rem;
+    }
 }
 
 @media (max-width: 640px) {
@@ -356,5 +451,13 @@
     .period-summary {
         gap: 0.6rem;
         flex-direction: column;
+    }
+
+    .chart-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .chart-bars {
+        height: 140px;
     }
 }

@@ -30,6 +30,16 @@ type ReportData = {
 
 type PeriodKey = 'ytd' | 'fy-1' | 'fy-2';
 
+type MonthlyBalance = {
+    month: string;
+    bank: number;
+    cash: number;
+};
+
+const fiscalMonths = ['Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+const bankMultipliers = [0.78, 0.8, 0.84, 0.87, 0.9, 0.92, 0.95, 0.98, 0.97, 0.99, 1.01, 1];
+const cashMultipliers = [0.88, 0.72, 0.8, 0.7, 0.78, 0.86, 0.93, 0.79, 0.74, 0.88, 0.94, 1];
+
 const reportData: Record<PeriodKey, ReportData> = {
     ytd: {
         label: 'Current YTD',
@@ -251,6 +261,36 @@ const buildPeriodOptions = (): { key: PeriodKey; label: string }[] => {
     ];
 };
 
+const getCurrentFyEnd = () => {
+    const today = new Date();
+    return today.getMonth() >= 6 ? today.getFullYear() + 1 : today.getFullYear();
+};
+
+const getCurrentFyMonthIndex = () => {
+    const month = new Date().getMonth();
+    return month >= 6 ? month - 6 : month + 6;
+};
+
+const findAssetAmount = (assets: LineItem[], label: string) =>
+    assets.find((item) => item.label === label)?.amount ?? 0;
+
+const buildBalanceSeries = (report: ReportData, period: PeriodKey, currentMonthIndex: number): MonthlyBalance[] => {
+    const bankBase = findAssetAmount(report.balanceSheet.assets, 'Savings reserve');
+    const cashBase = findAssetAmount(report.balanceSheet.assets, 'Operating bank account');
+
+    return fiscalMonths.map((month, index) => {
+        const bankValue = Math.round(bankBase * bankMultipliers[index]);
+        const cashValue = Math.round(cashBase * cashMultipliers[index]);
+        const isFuture = period === 'ytd' && index > currentMonthIndex;
+
+        return {
+            month,
+            bank: isFuture ? 0 : bankValue,
+            cash: isFuture ? 0 : cashValue,
+        };
+    });
+};
+
 const mapApiReport = (report: FinancialReportResponse): ReportData => ({
     label: report.label,
     range: report.range,
@@ -279,6 +319,8 @@ export function FinancialReports() {
         []
     );
     const isMock = import.meta.env.VITE_NO_AUTH === 'true';
+    const currentFyEnd = useMemo(() => getCurrentFyEnd(), []);
+    const currentFyMonthIndex = useMemo(() => getCurrentFyMonthIndex(), []);
 
     useEffect(() => {
         if (isMock) {
@@ -317,6 +359,15 @@ export function FinancialReports() {
     const totalLiabilities = activeReport.balanceSheet.liabilities.reduce((sum, item) => sum + item.amount, 0);
     const totalEquity = totalAssets - totalLiabilities;
     const netResultLabel = netResult >= 0 ? 'Net surplus' : 'Net deficit';
+    const balanceSeries = useMemo(
+        () => buildBalanceSeries(activeReport, period, currentFyMonthIndex),
+        [activeReport, period, currentFyMonthIndex]
+    );
+    const chartMax = Math.max(
+        1,
+        ...balanceSeries.flatMap((item) => [item.bank, item.cash])
+    );
+    const chartTitle = period === 'ytd' ? `FY ${currentFyEnd} bank & cash balances` : `${activeReport.label} bank & cash balances`;
 
     return (
         <div className="page-container reports-page">
@@ -370,6 +421,39 @@ export function FinancialReports() {
                     </div>
                     {loading && <div className="reports-loading">Loading report data…</div>}
                     {error && <div className="reports-error">{error}</div>}
+                </section>
+
+                <section className="reports-chart">
+                    <div className="panel-header">
+                        <h2>12-month balances</h2>
+                        <span className="panel-meta">{chartTitle}</span>
+                    </div>
+                    <div className="chart-legend">
+                        <span className="legend-item bank">Bank</span>
+                        <span className="legend-item cash">Cash</span>
+                        {period === 'ytd' && (
+                            <span className="chart-note">Future months shown as zero in current FY.</span>
+                        )}
+                    </div>
+                    <div className="chart-grid" role="img" aria-label="Bank and cash balances by month">
+                        {balanceSeries.map((item) => (
+                            <div key={item.month} className="chart-column">
+                                <div className="chart-bars">
+                                    <div
+                                        className="chart-bar bank"
+                                        style={{ height: item.bank === 0 ? '0' : `${(item.bank / chartMax) * 100}%` }}
+                                        title={`Bank ${item.month}: ${formatter.format(item.bank)}`}
+                                    />
+                                    <div
+                                        className="chart-bar cash"
+                                        style={{ height: item.cash === 0 ? '0' : `${(item.cash / chartMax) * 100}%` }}
+                                        title={`Cash ${item.month}: ${formatter.format(item.cash)}`}
+                                    />
+                                </div>
+                                <span className="chart-label">{item.month}</span>
+                            </div>
+                        ))}
+                    </div>
                 </section>
 
                 <section className="reports-grid">

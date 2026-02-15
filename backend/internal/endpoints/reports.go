@@ -38,14 +38,21 @@ type BalanceSheetSection struct {
 	EquityLabel      string           `json:"equityLabel"`
 }
 
+type MonthlyBalance struct {
+	Month string  `json:"month"`
+	Bank  float64 `json:"bank"`
+	Cash  float64 `json:"cash"`
+}
+
 type FinancialReportResponse struct {
-	Period       string              `json:"period"`
-	Label        string              `json:"label"`
-	Range        string              `json:"range"`
-	AsAt         string              `json:"asAt"`
-	Statement    StatementSection    `json:"statement"`
-	BalanceSheet BalanceSheetSection `json:"balanceSheet"`
-	Notes        []ReportNote        `json:"notes"`
+	Period          string              `json:"period"`
+	Label           string              `json:"label"`
+	Range           string              `json:"range"`
+	AsAt            string              `json:"asAt"`
+	Statement       StatementSection    `json:"statement"`
+	BalanceSheet    BalanceSheetSection `json:"balanceSheet"`
+	Notes           []ReportNote        `json:"notes"`
+	MonthlyBalances []MonthlyBalance    `json:"monthlyBalances"`
 }
 
 type periodSpec struct {
@@ -80,6 +87,7 @@ func FinancialReportGet(_ context.Context, request events.APIGatewayProxyRequest
 	equity := roundCurrency(totalAssets - totalLiabilities)
 
 	notes := buildNotes(assets)
+	monthlyBalances := buildMonthlyBalances(spec, ledgersByType)
 
 	response := FinancialReportResponse{
 		Period: spec.Key,
@@ -101,7 +109,8 @@ func FinancialReportGet(_ context.Context, request events.APIGatewayProxyRequest
 			Equity:           equity,
 			EquityLabel:      "Accumulated funds",
 		},
-		Notes: notes,
+		Notes:           notes,
+		MonthlyBalances: monthlyBalances,
 	}
 
 	body, _ := json.Marshal(response)
@@ -135,6 +144,46 @@ func currentFinancialYearEnd(now time.Time) int {
 		return now.Year() + 1
 	}
 	return now.Year()
+}
+
+func buildMonthlyBalances(spec periodSpec, ledgersByType map[string][]MonthlyLedger) []MonthlyBalance {
+	normalized := make(map[string][]MonthlyLedger)
+	for key, ledgers := range ledgersByType {
+		normalized[strings.ToUpper(key)] = ledgers
+	}
+	bankLedgers := normalized["BANK"]
+	cashLedgers := normalized["CASH"]
+
+	months := make([]MonthlyBalance, 0, 12)
+	fyStart := time.Date(spec.Start.Year(), time.July, 1, 0, 0, 0, 0, time.UTC)
+
+	for i := 0; i < 12; i++ {
+		monthStart := fyStart.AddDate(0, i, 0)
+		monthEnd := time.Date(monthStart.Year(), monthStart.Month()+1, 0, 23, 59, 59, 0, time.UTC)
+		isFuture := spec.Key == "ytd" && monthStart.After(spec.End)
+
+		bankBalance := 0.0
+		if !isFuture {
+			if balance, ok := ledgerBalanceAsAt(bankLedgers, monthEnd); ok {
+				bankBalance = balance
+			}
+		}
+
+		cashBalance := 0.0
+		if !isFuture {
+			if balance, ok := ledgerBalanceAsAt(cashLedgers, monthEnd); ok {
+				cashBalance = balance
+			}
+		}
+
+		months = append(months, MonthlyBalance{
+			Month: monthStart.Format("Jan"),
+			Bank:  roundCurrency(bankBalance),
+			Cash:  roundCurrency(cashBalance),
+		})
+	}
+
+	return months
 }
 
 func loadLedgerData(deps Dependencies) (map[string][]MonthlyLedger, error) {
