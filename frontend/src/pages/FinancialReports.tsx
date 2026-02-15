@@ -26,6 +26,7 @@ type ReportData = {
         title: string;
         details: string[];
     }[];
+    monthlyBalances?: MonthlyBalance[];
 };
 
 type PeriodKey = 'ytd' | 'fy-1' | 'fy-2';
@@ -305,6 +306,7 @@ const mapApiReport = (report: FinancialReportResponse): ReportData => ({
         equityLabel: report.balanceSheet.equityLabel,
     },
     notes: report.notes,
+    monthlyBalances: report.monthlyBalances,
 });
 
 export function FinancialReports() {
@@ -315,7 +317,13 @@ export function FinancialReports() {
     const [error, setError] = useState<string | null>(null);
     const periodOptions = useMemo(() => buildPeriodOptions(), []);
     const formatter = useMemo(
-        () => new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD', maximumFractionDigits: 0 }),
+        () =>
+            new Intl.NumberFormat('en-AU', {
+                style: 'currency',
+                currency: 'AUD',
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+            }),
         []
     );
     const isMock = import.meta.env.VITE_NO_AUTH === 'true';
@@ -359,14 +367,14 @@ export function FinancialReports() {
     const totalLiabilities = activeReport.balanceSheet.liabilities.reduce((sum, item) => sum + item.amount, 0);
     const totalEquity = totalAssets - totalLiabilities;
     const netResultLabel = netResult >= 0 ? 'Net surplus' : 'Net deficit';
-    const balanceSeries = useMemo(
-        () => buildBalanceSeries(activeReport, period, currentFyMonthIndex),
-        [activeReport, period, currentFyMonthIndex]
-    );
-    const chartMax = Math.max(
-        1,
-        ...balanceSeries.flatMap((item) => [item.bank, item.cash])
-    );
+    const balanceSeries = useMemo(() => {
+        if (activeReport.monthlyBalances && activeReport.monthlyBalances.length > 0) {
+            return activeReport.monthlyBalances;
+        }
+        return buildBalanceSeries(activeReport, period, currentFyMonthIndex);
+    }, [activeReport, period, currentFyMonthIndex]);
+    const bankMax = Math.max(1, ...balanceSeries.map((item) => item.bank));
+    const cashMax = Math.max(1, ...balanceSeries.map((item) => item.cash));
     const chartTitle = period === 'ytd' ? `FY ${currentFyEnd} bank & cash balances` : `${activeReport.label} bank & cash balances`;
 
     return (
@@ -428,31 +436,50 @@ export function FinancialReports() {
                         <h2>12-month balances</h2>
                         <span className="panel-meta">{chartTitle}</span>
                     </div>
-                    <div className="chart-legend">
-                        <span className="legend-item bank">Bank</span>
-                        <span className="legend-item cash">Cash</span>
-                        {period === 'ytd' && (
-                            <span className="chart-note">Future months shown as zero in current FY.</span>
-                        )}
-                    </div>
-                    <div className="chart-grid" role="img" aria-label="Bank and cash balances by month">
-                        {balanceSeries.map((item) => (
-                            <div key={item.month} className="chart-column">
-                                <div className="chart-bars">
-                                    <div
-                                        className="chart-bar bank"
-                                        style={{ height: item.bank === 0 ? '0' : `${(item.bank / chartMax) * 100}%` }}
-                                        title={`Bank ${item.month}: ${formatter.format(item.bank)}`}
-                                    />
-                                    <div
-                                        className="chart-bar cash"
-                                        style={{ height: item.cash === 0 ? '0' : `${(item.cash / chartMax) * 100}%` }}
-                                        title={`Cash ${item.month}: ${formatter.format(item.cash)}`}
-                                    />
-                                </div>
-                                <span className="chart-label">{item.month}</span>
+                    {period === 'ytd' && (
+                        <div className="chart-note">Future months shown as zero in current FY.</div>
+                    )}
+                    <div className="chart-panels">
+                        <div className="chart-panel">
+                            <div className="chart-panel-header">
+                                <span className="legend-item bank">Bank</span>
+                                <span className="chart-panel-meta">Max {formatter.format(bankMax)}</span>
                             </div>
-                        ))}
+                            <div className="chart-grid" role="img" aria-label="Bank balances by month">
+                                {balanceSeries.map((item) => (
+                                    <div key={item.month} className="chart-column">
+                                        <div className="chart-bars single">
+                                            <div
+                                                className="chart-bar bank"
+                                                style={{ height: item.bank === 0 ? '0' : `${(item.bank / bankMax) * 100}%` }}
+                                                title={`Bank ${item.month}: ${formatter.format(item.bank)}`}
+                                            />
+                                        </div>
+                                        <span className="chart-label">{item.month}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                        <div className="chart-panel">
+                            <div className="chart-panel-header">
+                                <span className="legend-item cash">Cash</span>
+                                <span className="chart-panel-meta">Max {formatter.format(cashMax)}</span>
+                            </div>
+                            <div className="chart-grid" role="img" aria-label="Cash balances by month">
+                                {balanceSeries.map((item) => (
+                                    <div key={item.month} className="chart-column">
+                                        <div className="chart-bars single">
+                                            <div
+                                                className="chart-bar cash"
+                                                style={{ height: item.cash === 0 ? '0' : `${(item.cash / cashMax) * 100}%` }}
+                                                title={`Cash ${item.month}: ${formatter.format(item.cash)}`}
+                                            />
+                                        </div>
+                                        <span className="chart-label">{item.month}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
                     </div>
                 </section>
 

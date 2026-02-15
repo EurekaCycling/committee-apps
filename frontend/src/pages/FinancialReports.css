@@ -198,14 +198,42 @@
     animation: fade-rise 0.8s ease-out 0.2s both;
 }
 
-.chart-legend {
+.chart-note {
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: #5b6f68;
+    margin-top: -0.5rem;
+}
+
+.chart-panels {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1rem;
+}
+
+.chart-panel {
+    border-radius: 18px;
+    border: 1px dashed rgba(15, 47, 43, 0.15);
+    padding: 1.1rem 1.25rem;
+    background: rgba(249, 247, 241, 0.7);
+    display: grid;
+    gap: 0.85rem;
+}
+
+.chart-panel-header {
     display: flex;
-    flex-wrap: wrap;
-    gap: 0.75rem 1.5rem;
     align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
     font-size: 0.9rem;
     color: #39544f;
     font-weight: 600;
+}
+
+.chart-panel-meta {
+    font-size: 0.8rem;
+    color: #5b6f68;
+    font-weight: 500;
 }
 
 .legend-item {
@@ -224,12 +252,6 @@
 
 .legend-item.cash::before {
     background: #c69152;
-}
-
-.chart-note {
-    font-size: 0.82rem;
-    font-weight: 500;
-    color: #5b6f68;
 }
 
 .chart-grid {
@@ -254,6 +276,10 @@
     align-items: end;
     gap: 0.25rem;
     height: 180px;
+}
+
+.chart-bars.single {
+    grid-template-columns: minmax(0, 1fr);
 }
 
 .chart-bar {

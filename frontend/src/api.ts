@@ -253,6 +253,11 @@ export type FinancialReportResponse = {
         equityLabel: string;
     };
     notes: FinancialReportNote[];
+    monthlyBalances?: {
+        month: string;
+        bank: number;
+        cash: number;
+    }[];
 };
 
 export async function fetchFinancialReport(period: string): Promise<FinancialReportResponse> {
