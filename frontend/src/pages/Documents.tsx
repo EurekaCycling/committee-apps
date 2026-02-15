@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { apiFetch } from '../api';
 import { FaFolder, FaEdit, FaChevronLeft, FaSave, FaUpload, FaTimes, FaPlus } from 'react-icons/fa';
-import ReactMarkdown from 'react-markdown';
+import { apiFetch } from '../api';
+import { FileList } from '../components/FileList/List.tsx';
+import { MarkdownEditor } from '../components/MarkdownEditor';
+import { MarkdownViewer } from '../components/MarkdownViewer';
+import { usePageTitle } from '../hooks/usePageTitle';
 import { useAppConfig } from '../providers/ConfigProvider';
 import './Documents.css';
 
@@ -42,9 +45,6 @@ const extractH1 = (markdown: string | null): string | null => {
     const match = markdown.match(/^#\s+(.+)$/m);
     return match ? match[1].trim() : null;
 };
-
-import { usePageTitle } from '../hooks/usePageTitle';
-import {FileList} from "../components/FileList/List.tsx";
 
 export function Documents() {
     const { config } = useAppConfig();
@@ -346,77 +346,6 @@ export function Documents() {
         }
     };
 
-    const MarkdownImage = ({ src, alt }: any) => {
-        if (!src) return null;
-        // Resolve relative path to full path
-        let targetPath = src;
-        if (!src.startsWith('/') && !src.startsWith('http')) {
-            targetPath = currentPath ? `${currentPath}/${src}` : src;
-        } else if (src.startsWith('/')) {
-            targetPath = src.substring(1);
-        }
-
-        targetPath = targetPath.replace(/\/+/g, '/').replace(/\/$/, '');
-
-        // Find file in current file list to get its signature components
-        const file = files.find(f => f.path === targetPath);
-        if (file) {
-            const imageUrl = getFileUrl(file);
-            if (imageUrl) return <img src={imageUrl} alt={alt} style={{ maxWidth: '100%' }} />;
-        }
-
-        // Fallback or missing signature
-        return <span className="error-text">Image not found or access expired</span>;
-    };
-
-    const MarkdownLink = ({ href, children }: any) => {
-        const handleClick = (e: React.MouseEvent) => {
-            if (href && !href.startsWith('http') && !href.startsWith('mailto')) {
-                e.preventDefault();
-                let targetPath = href;
-                if (!href.startsWith('/')) {
-                    targetPath = currentPath ? `${currentPath}/${href}` : href;
-                } else {
-                    targetPath = href.substring(1);
-                }
-
-                targetPath = targetPath.replace(/\/+/g, '/').replace(/\/$/, '');
-
-                const file = files.find(f => f.path === targetPath || f.path === targetPath + '/');
-                if (file) {
-                    if (file.isDir) {
-                        navigateTo(file.path);
-                    } else if (file.name.endsWith('.md')) {
-                        handleView(file);
-                    } else if (isViewable(file.name)) {
-                        handleFileAction(file, 'view');
-                    } else {
-                        handleFileAction(file, 'download');
-                    }
-                } else {
-                    if (href.endsWith('/') || !href.includes('.')) {
-                        navigateTo(targetPath);
-                    } else {
-                        const fileName = targetPath.split('/').pop() || '';
-                        if (fileName.endsWith('.md')) {
-                            handleView({ name: fileName, path: targetPath, isDir: false, size: 0, modTime: '' });
-                        } else if (isViewable(fileName)) {
-                            handleFileAction({ name: fileName, path: targetPath, isDir: false, size: 0, modTime: '' }, 'view');
-                        } else {
-                            handleFileAction({ name: fileName, path: targetPath, isDir: false, size: 0, modTime: '' }, 'download');
-                        }
-                    }
-                }
-            }
-        };
-
-        return (
-            <a href={href} onClick={handleClick} target={href?.startsWith('http') ? '_blank' : undefined} rel="noreferrer">
-                {children}
-            </a>
-        );
-    };
-
     if (editingFile) {
         return (
             <div className="page-container">
@@ -431,17 +360,20 @@ export function Documents() {
                         </button>
                     </div>
                 </div>
-                <div className="editor-container">
-                    <textarea
-                        className="markdown-editor"
-                        value={editContent}
-                        onChange={(e) => setEditContent(e.target.value)}
-                        onPaste={handlePaste}
-                    />
-                    <div className="markdown-preview">
-                        <ReactMarkdown components={{ a: MarkdownLink, img: MarkdownImage }}>{editContent}</ReactMarkdown>
-                    </div>
-                </div>
+                <MarkdownEditor
+                    value={editContent}
+                    onChange={setEditContent}
+                    onPaste={handlePaste}
+                    viewerProps={{
+                        currentPath,
+                        files,
+                        getFileUrl,
+                        navigateTo,
+                        onView: handleView,
+                        onFileAction: handleFileAction,
+                        isViewable
+                    }}
+                />
             </div>
         );
     }
@@ -464,7 +396,16 @@ export function Documents() {
                 {!loading && (
                     <div className="docs-content">
                         <div className="markdown-view card">
-                            <ReactMarkdown components={{ a: MarkdownLink, img: MarkdownImage }}>{viewContent}</ReactMarkdown>
+                            <MarkdownViewer
+                                content={viewContent}
+                                currentPath={currentPath}
+                                files={files}
+                                getFileUrl={getFileUrl}
+                                navigateTo={navigateTo}
+                                onView={handleView}
+                                onFileAction={handleFileAction}
+                                isViewable={isViewable}
+                            />
                         </div>
                     </div>
                 )}
@@ -524,7 +465,16 @@ export function Documents() {
                                     <FaEdit />
                                 </button>
                             </div>
-                            <ReactMarkdown components={{ a: MarkdownLink, img: MarkdownImage }}>{indexContent}</ReactMarkdown>
+                            <MarkdownViewer
+                                content={indexContent}
+                                currentPath={currentPath}
+                                files={files}
+                                getFileUrl={getFileUrl}
+                                navigateTo={navigateTo}
+                                onView={handleView}
+                                onFileAction={handleFileAction}
+                                isViewable={isViewable}
+                            />
                             <hr />
                             <h4>Directory Listing</h4>
                             <FileList
