@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { FaFolder, FaEdit, FaChevronLeft, FaSave, FaUpload, FaTimes, FaPlus } from 'react-icons/fa';
 import { apiFetch } from '../api';
@@ -7,17 +7,8 @@ import { MarkdownEditor } from '../components/MarkdownEditor';
 import { MarkdownViewer } from '../components/MarkdownViewer';
 import { usePageTitle } from '../hooks/usePageTitle';
 import { useAppConfig } from '../providers/ConfigProvider';
+import { FileListProvider, useFileList, type FileItem } from '../providers/FileListProvider';
 import './Documents.css';
-
-interface FileItem {
-    name: string;
-    path: string;
-    isDir: boolean;
-    size: number;
-    modTime: string;
-    token?: string;
-    expires?: number;
-}
 
 const getMimeType = (filename: string): string => {
     const ext = filename.split('.').pop()?.toLowerCase();
@@ -46,11 +37,18 @@ const extractH1 = (markdown: string | null): string | null => {
     return match ? match[1].trim() : null;
 };
 
-export function Documents() {
+function DocumentsContent() {
     const { config } = useAppConfig();
     const [searchParams, setSearchParams] = useSearchParams();
     const currentPath = searchParams.get('path') || '';
     const currentFile = searchParams.get('file') || '';
+    const {
+        files,
+        error,
+        fetchFiles,
+        indexContent,
+        isLoading: fileListLoading
+    } = useFileList();
 
     // Helper to update path in URL
     const setDocumentParams = (path: string, file?: string) => {
@@ -60,14 +58,12 @@ export function Documents() {
         setSearchParams(params);
     };
 
-    const [files, setFiles] = useState<FileItem[]>([]);
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
     const [editingFile, setEditingFile] = useState<FileItem | null>(null);
     const [editContent, setEditContent] = useState('');
     const [viewingFile, setViewingFile] = useState<FileItem | null>(null);
     const [viewContent, setViewContent] = useState('');
-    const [indexContent, setIndexContent] = useState<string | null>(null);
+    const isLoading = loading || fileListLoading;
 
     // Set page title: H1 from editor > filename > H1 from view > H1 from index > folder name > "Documents"
     const title = (editingFile ? (extractH1(editContent) || editingFile.name)
@@ -75,35 +71,6 @@ export function Documents() {
             : (indexContent ? extractH1(indexContent) : null))
         || (currentPath.split('/').filter(Boolean).pop() || 'Documents');
     usePageTitle(title);
-
-    const fetchFiles = async (path: string) => {
-        setLoading(true);
-        setError(null);
-        try {
-            const res = await apiFetch(`/documents/list?path=${encodeURIComponent(path)}`);
-            if (!res.ok) throw new Error('Failed to fetch files');
-            const data: FileItem[] = await res.json();
-            setFiles(data);
-
-            const indexFile = data.find(f => f.name.toLowerCase() === 'index.md');
-            if (indexFile) {
-                const indexRes = await apiFetch(`/documents/view?path=${encodeURIComponent(indexFile.path)}`);
-                if (indexRes.ok) {
-                    const base64 = await indexRes.text();
-                    const text = atob(base64);
-                    setIndexContent(text);
-                } else {
-                    setIndexContent(null);
-                }
-            } else {
-                setIndexContent(null);
-            }
-        } catch (err: any) {
-            setError(err.message);
-        } finally {
-            setLoading(false);
-        }
-    };
 
     const loadMarkdown = async (file: FileItem) => {
         const res = await apiFetch(`/documents/view?path=${encodeURIComponent(file.path)}`);
@@ -114,7 +81,8 @@ export function Documents() {
 
     useEffect(() => {
         fetchFiles(currentPath);
-    }, [currentPath]);
+    }, [currentPath, fetchFiles]);
+
 
     useEffect(() => {
         if (!currentFile) {
@@ -151,12 +119,10 @@ export function Documents() {
     }, [currentFile, currentPath, files, viewingFile, editingFile]);
 
     const navigateTo = (path: string) => {
-
         setDocumentParams(path);
         setEditingFile(null);
         setViewingFile(null);
         setViewContent('');
-        setIndexContent(null);
     };
 
     const goBack = () => {
@@ -360,7 +326,7 @@ export function Documents() {
                         <button onClick={() => { setDocumentParams(currentPath); setEditingFile(null); }} className="btn-secondary">
                             <FaTimes /> Cancel
                         </button>
-                        <button onClick={handleSave} className="btn-primary" disabled={loading}>
+                        <button onClick={handleSave} className="btn-primary" disabled={isLoading}>
                             <FaSave /> Save
                         </button>
                     </div>
@@ -397,8 +363,8 @@ export function Documents() {
                         </button>
                     </div>
                 </div>
-                {loading && <div className="loading">Loading...</div>}
-                {!loading && (
+                {isLoading && <div className="loading">Loading...</div>}
+                {!isLoading && (
                     <div className="docs-content">
                         <div className="markdown-view card">
                             <MarkdownViewer
@@ -454,10 +420,10 @@ export function Documents() {
                 </div>
             </div>
 
-            {loading && <div className="loading">Loading...</div>}
+            {isLoading && <div className="loading">Loading...</div>}
             {error && <div className="error-card">{error}</div>}
 
-            {!loading && !error && (
+            {!isLoading && !error && (
                 <div className="docs-content">
                     {indexContent ? (
                         <div className="markdown-view card">
@@ -506,5 +472,13 @@ export function Documents() {
                 </div>
             )}
         </div>
+    );
+}
+
+export function Documents() {
+    return (
+        <FileListProvider>
+            <DocumentsContent />
+        </FileListProvider>
     );
 }

@@ -1,7 +1,9 @@
 import type { MouseEvent, ReactNode } from 'react';
 import ReactMarkdown from 'react-markdown';
+import { useFileList } from '../providers/FileListProvider';
 
 export interface MarkdownFileItem {
+    url?: string;
     name: string;
     path: string;
     isDir: boolean;
@@ -32,6 +34,7 @@ export function MarkdownViewer({
     onFileAction,
     isViewable
 }: MarkdownViewerProps) {
+    const { files: contextFiles } = useFileList();
     const MarkdownImage = ({ src, alt }: { src?: string; alt?: string }) => {
         if (!src) return null;
         let targetPath = src;
@@ -43,9 +46,9 @@ export function MarkdownViewer({
 
         targetPath = targetPath.replace(/\/+/g, '/').replace(/\/$/, '');
 
-        const file = files.find(f => f.path === targetPath);
+        const file = contextFiles.find(f => f.path === targetPath);
         if (file) {
-            const imageUrl = getFileUrl(file);
+            const imageUrl = file.url || getFileUrl(file);
             if (imageUrl) return <img src={imageUrl} alt={alt} style={{ maxWidth: '100%' }} />;
         }
 
