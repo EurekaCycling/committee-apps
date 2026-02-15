@@ -31,6 +31,11 @@ const isViewable = (filename: string): boolean => {
     return mime !== 'application/octet-stream' || filename.toLowerCase().endsWith('.md');
 };
 
+const isImageFile = (file: File): boolean => {
+    if (file.type.startsWith('image/')) return true;
+    return /\.(png|jpe?g|gif|webp|svg)$/i.test(file.name);
+};
+
 const extractH1 = (markdown: string | null): string | null => {
     if (!markdown) return null;
     const match = markdown.match(/^#\s+(.+)$/m);
@@ -203,6 +208,11 @@ function DocumentsContent() {
         }
     };
 
+    const uploadFileToCurrentPath = async (file: File) => {
+        const uploadPath = joinPath(currentPath, file.name);
+        await putToS3(uploadPath, await file.arrayBuffer(), file.type || 'application/octet-stream');
+    };
+
     const handleSave = async () => {
         if (!editingFile) return;
         let savePath = editingFile.path;
@@ -238,14 +248,77 @@ function DocumentsContent() {
 
         setLoading(true);
         try {
-            const uploadPath = joinPath(currentPath, file.name);
-            await putToS3(uploadPath, await file.arrayBuffer(), file.type || 'application/octet-stream');
+            await uploadFileToCurrentPath(file);
             fetchFiles(currentPath);
         } catch (err: any) {
             alert(err.message);
         } finally {
             setLoading(false);
         }
+    };
+
+    const handlePageDrop = async (event: React.DragEvent<HTMLDivElement>) => {
+        event.preventDefault();
+        const droppedFiles = Array.from(event.dataTransfer.files || []);
+        if (!droppedFiles.length) return;
+
+        setLoading(true);
+        try {
+            for (const file of droppedFiles) {
+                await uploadFileToCurrentPath(file);
+            }
+            fetchFiles(currentPath);
+        } catch (err: any) {
+            alert(err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleEditorDrop = async (event: React.DragEvent<HTMLTextAreaElement>) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const droppedFiles = Array.from(event.dataTransfer.files || []);
+        if (!droppedFiles.length) return;
+
+        const textarea = event.currentTarget;
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+
+        setLoading(true);
+        try {
+            const snippets: string[] = [];
+            for (const file of droppedFiles) {
+                await uploadFileToCurrentPath(file);
+                const markdown = isImageFile(file)
+                    ? `![${file.name}](${file.name})`
+                    : `[${file.name}](${file.name})`;
+                snippets.push(markdown);
+            }
+
+            const text = textarea.value;
+            const before = text.substring(0, start);
+            const after = text.substring(end);
+            const insertText = `\n${snippets.join('\n')}\n`;
+            const newContent = before + insertText + after;
+
+            setEditContent(newContent);
+            fetchFiles(currentPath);
+
+            setTimeout(() => {
+                textarea.focus();
+                const newPos = start + insertText.length;
+                textarea.setSelectionRange(newPos, newPos);
+            }, 0);
+        } catch (err: any) {
+            alert(err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handlePageDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+        event.preventDefault();
     };
 
     const handlePaste = async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
@@ -393,7 +466,7 @@ function DocumentsContent() {
 
     if (editingFile) {
         return (
-            <div className="page-container">
+            <div className="page-container" onDrop={handlePageDrop} onDragOver={handlePageDragOver}>
                 <div className="docs-header">
                     {renderBreadcrumbs()}
                     <h2>Editing: {isNewPage ? (newPageName || 'Untitled') : editingFile.name}</h2>
@@ -410,6 +483,8 @@ function DocumentsContent() {
                     value={editContent}
                     onChange={setEditContent}
                     onPaste={handlePaste}
+                    onDrop={handleEditorDrop}
+                    onDragOver={(event) => event.preventDefault()}
                     viewerProps={{
                         currentPath,
                         files,
@@ -426,7 +501,7 @@ function DocumentsContent() {
 
     if (viewingFile) {
         return (
-            <div className="page-container">
+            <div className="page-container" onDrop={handlePageDrop} onDragOver={handlePageDragOver}>
                 <div className="docs-header">
                     {renderBreadcrumbs()}
                     <h2>{viewingFile.name}</h2>
@@ -461,7 +536,7 @@ function DocumentsContent() {
     }
 
     return (
-        <div className="page-container">
+            <div className="page-container" onDrop={handlePageDrop} onDragOver={handlePageDragOver}>
             <div className="docs-header">
                 {renderBreadcrumbs()}
                 <div className="docs-actions">

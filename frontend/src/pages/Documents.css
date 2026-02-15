@@ -111,6 +111,25 @@
     text-decoration: none;
 }
 
+.markdown-view a.pdf-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 600;
+}
+
+.markdown-view .pdf-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.15rem 0.4rem;
+    border-radius: 4px;
+    background-color: var(--accent-color);
+    color: white;
+    font-size: 0.7rem;
+    letter-spacing: 0.04em;
+}
+
 .markdown-view a:hover {
     text-decoration: underline;
 }

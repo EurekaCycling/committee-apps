@@ -48,8 +48,18 @@ export function MarkdownViewer({
 
         const file = contextFiles.find(f => f.path === targetPath);
         if (file) {
-            const imageUrl = file.url || getFileUrl(file);
-            if (imageUrl) return <img src={imageUrl} alt={alt} style={{ maxWidth: '100%' }} />;
+            const fileUrl = file.url || getFileUrl(file);
+            if (fileUrl) {
+                if (file.name.toLowerCase().endsWith('.pdf')) {
+                    return (
+                        <a href={fileUrl} target="_blank" rel="noreferrer" className="pdf-link">
+                            <span className="pdf-badge">PDF</span>
+                            {alt || file.name}
+                        </a>
+                    );
+                }
+                return <img src={fileUrl} alt={alt} style={{ maxWidth: '100%' }} />;
+            }
         }
 
         return <span className="error-text">Image not found or access expired</span>;
@@ -57,16 +67,34 @@ export function MarkdownViewer({
 
     const MarkdownLink = ({ href, children }: { href?: string; children?: ReactNode }) => {
         const isInternal = href && !href.startsWith('http') && !href.startsWith('mailto');
+        const resolveTargetPath = (value: string) => {
+            if (!value.startsWith('/')) {
+                return currentPath ? `${currentPath}/${value}` : value;
+            }
+            return value.substring(1);
+        };
+
+        if (href && isInternal) {
+            let targetPath = resolveTargetPath(href);
+            targetPath = targetPath.replace(/\/+/g, '/').replace(/\/$/, '');
+            const file = files.find(f => f.path === targetPath || f.path === `${targetPath}/`);
+            if (file && file.name.toLowerCase().endsWith('.pdf')) {
+                const fileUrl = file.url || getFileUrl(file);
+                if (fileUrl) {
+                    return (
+                        <a href={fileUrl} target="_blank" rel="noreferrer" className="pdf-link">
+                            <span className="pdf-badge">PDF</span>
+                            {children || file.name}
+                        </a>
+                    );
+                }
+            }
+        }
 
         const handleClick = (event: MouseEvent<HTMLAnchorElement>) => {
             if (!href || !isInternal) return;
             event.preventDefault();
-            let targetPath = href;
-            if (!href.startsWith('/')) {
-                targetPath = currentPath ? `${currentPath}/${href}` : href;
-            } else {
-                targetPath = href.substring(1);
-            }
+            let targetPath = resolveTargetPath(href);
 
             targetPath = targetPath.replace(/\/+/g, '/').replace(/\/$/, '');
 
