@@ -4,14 +4,13 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "build:sw": "tsc -p tsconfig.sw.json",
-    "dev": "npm run build:sw && vite",
-    "build": "npm run build:sw && tsc -b && vite build",
+    "dev": "npm run && vite",
+    "build": "npm run && tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
     "cy:open": "op run --env-file=op_env -- cypress open --e2e --browser chrome",
     "cy:run": "NODE_NO_WARNINGS=1 op run --env-file=op_env -- cypress run --headed",
-    "cy:video": "op run --env-file=op_env -- cypress run --spec cypress/e2e/walkthrough.cy.ts --no-runner-ui --browser chrome --headed"
+    "cy:video": "op run --env-file=op_env -- cypress run --spec cypress/e2e/walkthrough.cy.ts --no-runner-ui --browser chrome"
   },
   "dependencies": {
     "@aws-amplify/ui-react": "^6.14.0",

@@ -4,7 +4,6 @@ import { BrowserRouter } from 'react-router-dom'
 import './index.css'
 import App from './App.tsx'
 import { ConfigProvider } from './providers/ConfigProvider'
-import { registerDocumentsServiceWorker } from './serviceWorker'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -15,5 +14,3 @@ createRoot(document.getElementById('root')!).render(
     </BrowserRouter>
   </StrictMode>,
 )
-
-registerDocumentsServiceWorker()
