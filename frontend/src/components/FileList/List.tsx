@@ -1,4 +1,4 @@
-import {FaEdit, FaEye, FaFileAlt, FaUpload} from "react-icons/fa";
+import {FaFileAlt} from "react-icons/fa";
 
 interface FileItem {
     url?: string;
@@ -14,24 +14,16 @@ interface FileItem {
 interface FileListProps {
     files: FileItem[];
     onNavigate: (path: string) => void;
-    onEdit: (file: FileItem) => void;
     onView: (file: FileItem) => void;
-    onFileAction: (file: FileItem, mode: 'download' | 'view') => void;
-    getFileUrl: (file: FileItem) => string;
-    isViewable: (filename: string) => boolean;
 }
 
 interface ItemProps {
     file: FileItem;
     onNavigate: (path: string) => void;
-    onEdit: (file: FileItem) => void;
     onView: (file: FileItem) => void;
-    onFileAction: (file: FileItem, mode: 'download' | 'view') => void;
-    getFileUrl: (file: FileItem) => string;
-    isViewable: (filename: string) => boolean;
 }
 
-function Item({ file, onNavigate, onEdit, onView, onFileAction, getFileUrl, isViewable }: ItemProps) {
+function Item({ file, onNavigate, onView }: ItemProps) {
     const ext = file.name.split('.').pop()?.toLowerCase();
     const isDir = file.isDir;
     const isRelative = isDir || ext == 'md';
@@ -60,52 +52,15 @@ function Item({ file, onNavigate, onEdit, onView, onFileAction, getFileUrl, isVi
         </td>
         <td>{file.isDir ? '-' : formatSize(file.size)}</td>
         <td>{file.modTime ? new Date(file.modTime).toLocaleDateString() : '-'}</td>
-        <td>
-            {!file.isDir && file.name.endsWith('.md') && (
-                <button onClick={() => onEdit(file)} className="btn-icon" title="Edit">
-                    <FaEdit/>
-                </button>
-            )}
-            {!file.isDir && isViewable(file.name) && (
-                getFileUrl(file) ? (
-                    <a href={getFileUrl(file)} target="_blank" rel="noreferrer" className="btn-icon"
-                       title="View in new tab">
-                        <FaEye/>
-                    </a>
-                ) : (
-                    <button onClick={() => onFileAction(file, 'view')} className="btn-icon"
-                            title="View in new tab">
-                        <FaEye/>
-                    </button>
-                )
-            )}
-            {!file.isDir && (
-                getFileUrl(file) ? (
-                    <a href={getFileUrl(file)} download={file.name} className="btn-icon"
-                       title="Download">
-                        <FaUpload style={{transform: 'rotate(180deg)'}}/>
-                    </a>
-                ) : (
-                    <button onClick={() => onFileAction(file, 'download')} className="btn-icon"
-                            title="Download">
-                        <FaUpload style={{transform: 'rotate(180deg)'}}/>
-                    </button>
-                )
-            )}
-        </td>
     </tr>
     ;
 }
 
 export function FileList({
-                             files,
-                             onNavigate,
-                             onEdit,
-                             onView,
-                             onFileAction,
-                             getFileUrl,
-                             isViewable
-                         }: FileListProps) {
+                              files,
+                              onNavigate,
+                              onView
+                          }: FileListProps) {
 
     return (
         <div className="file-list card">
@@ -116,7 +71,6 @@ export function FileList({
                     <th>Name</th>
                     <th>Size</th>
                     <th>Modified</th>
-                    <th>Actions</th>
                 </tr>
                 </thead>
                 <tbody>
@@ -127,11 +81,7 @@ export function FileList({
                             key={file.path}
                             file={file}
                             onNavigate={onNavigate}
-                            onEdit={onEdit}
                             onView={onView}
-                            onFileAction={onFileAction}
-                            getFileUrl={getFileUrl}
-                            isViewable={isViewable}
                         />
                     ))}
                 </tbody>

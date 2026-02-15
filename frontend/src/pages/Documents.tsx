@@ -37,6 +37,13 @@ const extractH1 = (markdown: string | null): string | null => {
     return match ? match[1].trim() : null;
 };
 
+const joinPath = (base: string, name: string): string => {
+    if (!base) return name;
+    const trimmedBase = base.replace(/\/+$/, '');
+    const trimmedName = name.replace(/^\/+/, '');
+    return `${trimmedBase}/${trimmedName}`;
+};
+
 function DocumentsContent() {
     const { config } = useAppConfig();
     const [searchParams, setSearchParams] = useSearchParams();
@@ -91,7 +98,7 @@ function DocumentsContent() {
             return;
         }
 
-        const targetPath = currentPath ? `${currentPath}/${currentFile}` : currentFile;
+        const targetPath = joinPath(currentPath, currentFile);
         if (editingFile && editingFile.path === targetPath) {
             return;
         }
@@ -206,7 +213,7 @@ function DocumentsContent() {
 
         setLoading(true);
         try {
-            const uploadPath = currentPath ? `${currentPath}/${file.name}` : file.name;
+            const uploadPath = joinPath(currentPath, file.name);
             await putToS3(uploadPath, await file.arrayBuffer(), file.type || 'application/octet-stream');
             fetchFiles(currentPath);
         } catch (err: any) {
@@ -228,7 +235,7 @@ function DocumentsContent() {
                 try {
                     const ext = file.type.split('/')[1] || 'png';
                     const filename = `${crypto.randomUUID()}.${ext}`;
-                    const uploadPath = currentPath ? `${currentPath}/${filename}` : filename;
+                    const uploadPath = joinPath(currentPath, filename);
                     const textarea = e.currentTarget;
                     const start = textarea.selectionStart;
                     const end = textarea.selectionEnd;
@@ -289,7 +296,7 @@ function DocumentsContent() {
     const createFolder = async () => {
         const name = prompt('Enter folder name:');
         if (name) {
-            const path = currentPath ? `${currentPath}/${name}` : name;
+            const path = joinPath(currentPath, name);
             setLoading(true);
             try {
                 const res = await apiFetch(`/documents/mkdir?path=${encodeURIComponent(path)}`, {
@@ -309,7 +316,7 @@ function DocumentsContent() {
         const name = prompt('Enter filename (e.g. notes.md):');
         if (name) {
             const fileName = name.endsWith('.md') ? name : `${name}.md`;
-            const path = currentPath ? `${currentPath}/${fileName}` : fileName;
+            const path = joinPath(currentPath, fileName);
             setViewingFile(null);
             setViewContent('');
             setEditingFile({ name: fileName, path, isDir: false, size: 0, modTime: '' });
@@ -451,22 +458,14 @@ function DocumentsContent() {
                             <FileList
                                 files={files}
                                 onNavigate={navigateTo}
-                                onEdit={handleEdit}
                                 onView={handleView}
-                                onFileAction={handleFileAction}
-                                getFileUrl={getFileUrl}
-                                isViewable={isViewable}
                             />
                         </div>
                     ) : (
                         <FileList
                             files={files}
                             onNavigate={navigateTo}
-                            onEdit={handleEdit}
                             onView={handleView}
-                            onFileAction={handleFileAction}
-                            getFileUrl={getFileUrl}
-                            isViewable={isViewable}
                         />
                     )}
                 </div>
