@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { apiFetch } from '../api';
-import { FaFolder, FaFileAlt, FaEdit, FaChevronLeft, FaSave, FaUpload, FaTimes, FaPlus, FaEye } from 'react-icons/fa';
+import { FaFolder, FaEdit, FaChevronLeft, FaSave, FaUpload, FaTimes, FaPlus } from 'react-icons/fa';
 import ReactMarkdown from 'react-markdown';
 import { useAppConfig } from '../providers/ConfigProvider';
 import './Documents.css';
@@ -44,6 +44,7 @@ const extractH1 = (markdown: string | null): string | null => {
 };
 
 import { usePageTitle } from '../hooks/usePageTitle';
+import {FileList} from "../components/FileList/List.tsx";
 
 export function Documents() {
     const { config } = useAppConfig();
@@ -150,6 +151,7 @@ export function Documents() {
     }, [currentFile, currentPath, files, viewingFile, editingFile]);
 
     const navigateTo = (path: string) => {
+
         setDocumentParams(path);
         setEditingFile(null);
         setViewingFile(null);
@@ -525,102 +527,29 @@ export function Documents() {
                             <ReactMarkdown components={{ a: MarkdownLink, img: MarkdownImage }}>{indexContent}</ReactMarkdown>
                             <hr />
                             <h4>Directory Listing</h4>
-                            <FileList files={files} onNavigate={navigateTo} onEdit={handleEdit} onView={handleView} onFileAction={handleFileAction} />
+                            <FileList
+                                files={files}
+                                onNavigate={navigateTo}
+                                onEdit={handleEdit}
+                                onView={handleView}
+                                onFileAction={handleFileAction}
+                                getFileUrl={getFileUrl}
+                                isViewable={isViewable}
+                            />
                         </div>
                     ) : (
-                        <FileList files={files} onNavigate={navigateTo} onEdit={handleEdit} onView={handleView} onFileAction={handleFileAction} />
+                        <FileList
+                            files={files}
+                            onNavigate={navigateTo}
+                            onEdit={handleEdit}
+                            onView={handleView}
+                            onFileAction={handleFileAction}
+                            getFileUrl={getFileUrl}
+                            isViewable={isViewable}
+                        />
                     )}
                 </div>
             )}
         </div>
     );
-}
-
-function FileList({ files, onNavigate, onEdit, onView, onFileAction }: {
-    files: FileItem[],
-    onNavigate: (path: string) => void,
-    onEdit: (file: FileItem) => void,
-    onView: (file: FileItem) => void,
-    onFileAction: (file: FileItem, mode: 'download' | 'view') => void
-}) {
-    const handleNameClick = (file: FileItem) => {
-        if (file.isDir) {
-            onNavigate(file.path);
-            return;
-        }
-
-        if (file.name.endsWith('.md')) {
-            onView(file);
-            return;
-        }
-
-        if (isViewable(file.name)) {
-            onFileAction(file, 'view');
-            return;
-        }
-
-        onFileAction(file, 'download');
-    };
-
-    return (
-        <div className="file-list card">
-            {files.length === 0 && <p className="empty-msg">No files in this directory.</p>}
-            <table>
-                <thead>
-                    <tr>
-                        <th>Name</th>
-                        <th>Size</th>
-                        <th>Modified</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {files.sort((a, b) => (a.isDir === b.isDir ? a.name.localeCompare(b.name) : a.isDir ? -1 : 1))
-                        .filter(f => f.name.toLowerCase() !== 'index.md')
-                        .map(file => (
-                            <tr key={file.path}>
-                                <td>
-                                    <button
-                                        type="button"
-                                        onClick={() => handleNameClick(file)}
-                                        className="btn-link"
-                                        title={file.isDir ? 'Open folder' : file.name.endsWith('.md') ? 'View' : isViewable(file.name) ? 'Open in new tab' : 'Download'}
-                                    >
-                                        {file.isDir ? <FaFolder className="icon-folder" /> : <FaFileAlt className="icon-file" />}
-                                        {file.name}
-                                    </button>
-                                </td>
-                                <td>{file.isDir ? '-' : formatSize(file.size)}</td>
-                                <td>{file.modTime ? new Date(file.modTime).toLocaleDateString() : '-'}</td>
-                                <td>
-                                    {!file.isDir && file.name.endsWith('.md') && (
-                                        <button onClick={() => onEdit(file)} className="btn-icon" title="Edit">
-                                            <FaEdit />
-                                        </button>
-                                    )}
-                                    {!file.isDir && isViewable(file.name) && (
-                                        <button onClick={() => onFileAction(file, 'view')} className="btn-icon" title="View in new tab">
-                                            <FaEye />
-                                        </button>
-                                    )}
-                                    {!file.isDir && (
-                                        <button onClick={() => onFileAction(file, 'download')} className="btn-icon" title="Download">
-                                            <FaUpload style={{ transform: 'rotate(180deg)' }} />
-                                        </button>
-                                    )}
-                                </td>
-                            </tr>
-                        ))}
-                </tbody>
-            </table>
-        </div>
-    );
-}
-
-function formatSize(bytes: number) {
-    if (bytes === 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
