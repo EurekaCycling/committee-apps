@@ -55,6 +55,14 @@ export class CommitteeAppsStack extends cdk.Stack {
       encryption: s3.BucketEncryption.S3_MANAGED,
       enforceSSL: true,
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      cors: [
+        {
+          allowedOrigins: props.corsOrigins,
+          allowedMethods: [s3.HttpMethods.GET, s3.HttpMethods.PUT],
+          allowedHeaders: ['*'],
+          exposedHeaders: ['ETag'],
+        },
+      ],
     });
 
     // --- Data Storage ---
