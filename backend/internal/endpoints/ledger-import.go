@@ -172,7 +172,7 @@ func buildBankImportLedgers(rows []bankImportRow, ledgerType string, currentBala
 		rows := monthRows[month]
 		sort.Slice(rows, func(i, j int) bool {
 			if rows[i].Date.Equal(rows[j].Date) {
-				return rows[i].OrigIdx < rows[j].OrigIdx
+				return rows[i].OrigIdx > rows[j].OrigIdx
 			}
 			return rows[i].Date.Before(rows[j].Date)
 		})
