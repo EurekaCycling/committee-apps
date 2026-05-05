@@ -391,18 +391,6 @@ func buildNotes(assets []ReportLineItem) []ReportNote {
 			Title:   "Bank accounts",
 			Details: details,
 		},
-		{
-			Title:   "Grants",
-			Details: []string{"Not available from ledgers; requires separate grant register."},
-		},
-		{
-			Title:   "Loans",
-			Details: []string{"Not available from ledgers; requires loan schedule data."},
-		},
-		{
-			Title:   "Trust money",
-			Details: []string{"Not available from ledgers; requires trust money ledger."},
-		},
 	}
 }
 
