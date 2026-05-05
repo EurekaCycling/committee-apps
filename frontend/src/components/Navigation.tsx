@@ -34,7 +34,10 @@ export function Navigation() {
                     <li><Link to="/" className={isActive('/')} onClick={closeMenu}>Home</Link></li>
 
                     {isTreasurer && (
-                        <li><Link to="/ledger" className={isActive('/ledger')} onClick={closeMenu}>Ledger</Link></li>
+                        <>
+                            <li><Link to="/ledger" className={isActive('/ledger')} onClick={closeMenu}>Ledger</Link></li>
+                            <li><Link to="/term-deposits" className={isActive('/term-deposits')} onClick={closeMenu}>Term Deposits</Link></li>
+                        </>
                     )}
 
                     {isCommitteeOrTreasurer && (

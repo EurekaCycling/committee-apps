@@ -199,6 +199,26 @@ export async function importLedgerCsv(contents: string, openingBalance?: number)
     }
 }
 
+export type TermDepositYear = {
+    fy: number;
+    balance: number;
+    interest: number;
+    maturityDate: string;
+};
+
+export async function fetchTermDeposits(): Promise<TermDepositYear[]> {
+    const res = await apiFetch('/termdeposits');
+    return res.json();
+}
+
+export async function saveTermDeposits(deposits: TermDepositYear[]): Promise<TermDepositYear[]> {
+    const res = await apiFetch('/termdeposits', {
+        method: 'POST',
+        body: JSON.stringify(deposits),
+    });
+    return res.json();
+}
+
 export type ReimbursementReceiptInput = {
     fileName: string;
     contentType: string;

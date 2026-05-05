@@ -79,9 +79,31 @@ func FinancialReportGet(_ context.Context, request events.APIGatewayProxyRequest
 	}
 
 	incomeItems, expenseItems, totalIncome, totalExpense := buildStatement(spec.Start, spec.End, ledgersByType)
+
+	fyEnd := currentFinancialYearEnd(spec.End)
+	tdYears, _ := loadTermDepositYears(deps)
+	var tdMatch *TermDepositYear
+	for i, td := range tdYears {
+		if td.FY == fyEnd {
+			tdMatch = &tdYears[i]
+			break
+		}
+	}
+
+	if tdMatch != nil && tdMatch.Interest > 0 {
+		incomeItems = append(incomeItems, ReportLineItem{Label: "Term deposit interest", Amount: tdMatch.Interest})
+		totalIncome = roundCurrency(totalIncome + tdMatch.Interest)
+	}
+
 	netResult := roundCurrency(totalIncome - totalExpense)
 
 	assets, totalAssets := buildAssets(spec.End, ledgersByType)
+
+	if tdMatch != nil && tdMatch.Balance > 0 {
+		assets = append(assets, ReportLineItem{Label: "Term deposit", Amount: tdMatch.Balance})
+		totalAssets = roundCurrency(totalAssets + tdMatch.Balance)
+	}
+
 	liabilities := []ReportLineItem{}
 	totalLiabilities := 0.0
 	equity := roundCurrency(totalAssets - totalLiabilities)

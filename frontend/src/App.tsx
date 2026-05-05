@@ -10,6 +10,7 @@ import { Ledger } from './pages/Ledger';
 import { FinancialReports } from './pages/FinancialReports';
 import { Reimbursements } from './pages/Reimbursements';
 import { Documents } from './pages/Documents';
+import { TermDeposits } from './pages/TermDeposits';
 
 import { useAuth } from './auth-hook';
 import { useAppConfig } from './providers/ConfigProvider';
@@ -95,6 +96,11 @@ function MainLayout() {
         <Route path="/ledger" element={
           <ProtectedRoute allowedRoles={['treasurer']}>
             <Ledger />
+          </ProtectedRoute>
+        } />
+        <Route path="/term-deposits" element={
+          <ProtectedRoute allowedRoles={['treasurer']}>
+            <TermDeposits />
           </ProtectedRoute>
         } />
       </Routes>
