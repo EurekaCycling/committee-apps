@@ -61,6 +61,33 @@
     line-height: 1;
 }
 
+.opening-balance-prompt {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    width: 100%;
+}
+
+.opening-balance-prompt label {
+    font-weight: 500;
+}
+
+.opening-balance-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.opening-balance-controls input {
+    width: 150px;
+    padding: 0.4rem 0.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 0.95rem;
+}
+
 .type-toggle {
     display: flex;
     gap: 0.5rem;

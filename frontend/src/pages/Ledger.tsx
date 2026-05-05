@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useRef, useState } from 'react';
 import type { ChangeEvent, DragEvent, KeyboardEvent } from 'react';
 import { FaMoneyBillWave, FaUniversity, FaCreditCard, FaCheck, FaTimes } from 'react-icons/fa';
-import { apiFetch, createLedgerTransaction, fetchCategories, importLedgerCsv, updateLedgerTransaction } from '../api';
+import { apiFetch, createLedgerTransaction, fetchCategories, importLedgerCsv, OpeningBalanceRequiredError, updateLedgerTransaction } from '../api';
 import type { MonthlyLedger, TransactionType } from '../mocks/ledgerData';
 import { usePageTitle } from '../hooks/usePageTitle';
 import './Ledger.css';
@@ -58,6 +58,8 @@ export function Ledger() {
     } | null>(null);
     const [categories, setCategories] = useState<string[]>([]);
     const importInputRef = useRef<HTMLInputElement | null>(null);
+    const [showOpeningBalancePrompt, setShowOpeningBalancePrompt] = useState(false);
+    const [openingBalanceInput, setOpeningBalanceInput] = useState('');
     const [draft, setDraft] = useState({
         date: getDateKey(new Date()),
         category: '',
@@ -158,7 +160,7 @@ export function Ledger() {
         setImportDragActive(false);
     };
 
-    const handleImportCsv = async () => {
+    const handleImportCsv = async (openingBalance?: number) => {
         if (!importFile) {
             setImportError('Select a CSV file to import.');
             setImportMessage(null);
@@ -170,14 +172,21 @@ export function Ledger() {
         setImportMessage(null);
         try {
             const csv = await importFile.text();
-            await importLedgerCsv(csv);
+            await importLedgerCsv(csv, openingBalance);
             setImportMessage(`Imported ${importFile.name}.`);
             setImportFile(null);
             if (importInputRef.current) {
                 importInputRef.current.value = '';
             }
+            setShowOpeningBalancePrompt(false);
+            setOpeningBalanceInput('');
             setReloadToken(prev => prev + 1);
         } catch (err) {
+            if (err instanceof OpeningBalanceRequiredError) {
+                setShowOpeningBalancePrompt(true);
+                setImporting(false);
+                return;
+            }
             console.error(err);
             const message = err instanceof Error
                 ? err.message
@@ -186,6 +195,20 @@ export function Ledger() {
         } finally {
             setImporting(false);
         }
+    };
+
+    const handleOpeningBalanceSubmit = () => {
+        const value = Number(openingBalanceInput);
+        if (Number.isNaN(value)) {
+            setImportError('Opening balance must be a valid number.');
+            return;
+        }
+        void handleImportCsv(value);
+    };
+
+    const handleOpeningBalanceCancel = () => {
+        setShowOpeningBalancePrompt(false);
+        setOpeningBalanceInput('');
     };
 
     const handleDraftUpdate = (field: 'date' | 'category' | 'description' | 'amount', value: string) => {
@@ -419,6 +442,54 @@ export function Ledger() {
                     >
                         ×
                     </button>
+                </div>
+            )}
+
+            {showOpeningBalancePrompt && (
+                <div className="ledger-alert" role="dialog">
+                    <div className="opening-balance-prompt">
+                        <label htmlFor="opening-balance-input">
+                            No existing ledger data found. Enter the opening balance for the first month:
+                        </label>
+                        <div className="opening-balance-controls">
+                            <span>$</span>
+                            <input
+                                id="opening-balance-input"
+                                type="number"
+                                step="0.01"
+                                placeholder="0.00"
+                                value={openingBalanceInput}
+                                onChange={event => setOpeningBalanceInput(event.target.value)}
+                                onKeyDown={event => {
+                                    if (event.key === 'Enter') {
+                                        event.preventDefault();
+                                        handleOpeningBalanceSubmit();
+                                    }
+                                    if (event.key === 'Escape') {
+                                        event.preventDefault();
+                                        handleOpeningBalanceCancel();
+                                    }
+                                }}
+                                autoFocus
+                            />
+                            <button
+                                type="button"
+                                className="import-btn"
+                                onClick={handleOpeningBalanceSubmit}
+                                disabled={importing}
+                            >
+                                {importing ? 'Importing…' : 'Import'}
+                            </button>
+                            <button
+                                type="button"
+                                className="ledger-alert-close"
+                                aria-label="Cancel"
+                                onClick={handleOpeningBalanceCancel}
+                            >
+                                ×
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
 

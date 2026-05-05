@@ -458,17 +458,33 @@ func handleLedgerImport(request events.APIGatewayProxyRequest, deps Dependencies
 		if requireCurrentBalance {
 			return events.APIGatewayProxyResponse{Body: `{"error": "Current balance is required"}`, StatusCode: 400, Headers: deps.Headers}, nil
 		}
-		dirPath := ledgerPrefix + ledgerType
-		baseBalance, found, err := findLatestLedgerClosingBalance(dirPath, deps)
-		if err != nil {
-			return errorResponse(err, deps.Headers), nil
+
+		openingBalanceRaw := strings.TrimSpace(request.QueryStringParameters["openingBalance"])
+		if openingBalanceRaw != "" {
+			parsed, err := strconv.ParseFloat(openingBalanceRaw, 64)
+			if err != nil {
+				return events.APIGatewayProxyResponse{Body: `{"error": "Opening balance must be a number"}`, StatusCode: 400, Headers: deps.Headers}, nil
+			}
+			total := sumBankImportAmounts(rows)
+			inferred := roundCurrency(parsed + total)
+			currentBalance = &inferred
+		} else {
+			dirPath := ledgerPrefix + ledgerType
+			baseBalance, found, err := findLatestLedgerClosingBalance(dirPath, deps)
+			if err != nil {
+				return errorResponse(err, deps.Headers), nil
+			}
+			if !found {
+				return events.APIGatewayProxyResponse{
+					Body:       `{"error": "No existing ledger found. Please provide the opening balance for the first month.", "needsOpeningBalance": true}`,
+					StatusCode: 400,
+					Headers:    deps.Headers,
+				}, nil
+			}
+			total := sumBankImportAmounts(rows)
+			inferred := roundCurrency(baseBalance + total)
+			currentBalance = &inferred
 		}
-		if !found {
-			baseBalance = 0
-		}
-		total := sumBankImportAmounts(rows)
-		inferred := roundCurrency(baseBalance + total)
-		currentBalance = &inferred
 	}
 
 	ledgers, months, openingBalance, closingBalance, err := buildBankImportLedgers(rows, ledgerType, *currentBalance, existingByMonth)

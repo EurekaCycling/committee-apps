@@ -147,20 +147,56 @@ export async function updateLedgerTransaction(input: LedgerTransactionEditInput)
     await res.text();
 }
 
-export async function importLedgerCsv(contents: string): Promise<void> {
+export class OpeningBalanceRequiredError extends Error {
+    constructor() {
+        super('Opening balance is required for the first month.');
+        this.name = 'OpeningBalanceRequiredError';
+    }
+}
+
+export async function importLedgerCsv(contents: string, openingBalance?: number): Promise<void> {
     if (import.meta.env.VITE_NO_AUTH === 'true') {
         console.log('Mocking Ledger CSV Import');
         return;
     }
 
-    const res = await apiFetch('/ledger/import', {
+    const params = new URLSearchParams();
+    if (openingBalance !== undefined) {
+        params.set('openingBalance', openingBalance.toString());
+    }
+    const query = params.toString();
+    const url = `/ledger/import${query ? `?${query}` : ''}`;
+
+    const session = await fetchAuthSession();
+    const token = session.tokens?.idToken?.toString();
+    const headers: Record<string, string> = { 'Content-Type': 'text/csv' };
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const baseUrl = await resolveApiBaseUrl();
+    const res = await fetch(`${baseUrl}${url}`, {
         method: 'POST',
-        headers: {
-            'Content-Type': 'text/csv'
-        },
+        headers,
         body: contents
     });
-    await res.text();
+
+    if (!res.ok) {
+        const text = await res.text();
+        try {
+            const json = JSON.parse(text);
+            if (json.needsOpeningBalance) {
+                throw new OpeningBalanceRequiredError();
+            }
+            if (json.message || json.error) {
+                throw new Error(json.message || json.error);
+            }
+        } catch (e) {
+            if (e instanceof OpeningBalanceRequiredError) throw e;
+            if (e instanceof Error && e.message !== text) throw e;
+        }
+        throw new Error(`API request failed: ${res.status} ${res.statusText}`);
+    }
 }
 
 export type ReimbursementReceiptInput = {
